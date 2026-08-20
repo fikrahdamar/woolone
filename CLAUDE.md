@@ -3,14 +3,30 @@
 Real-time body pose form judge. Vision framework, 2D, single person, live camera.
 Full technical background: `C4-project-context.md`. Read it before non-trivial work.
 
+## Knowledge base
+
+Synthesized technical notes live in an Obsidian vault at
+`/Users/damars/obisidian-dev/damar-sec-brain` — Apple Vision,and another that already discussion on obsidian
+
+When a question touches technical ground I may have already researched, read
+`tech/index.md` there first — it is ~220 words and lists every page plus the raw sources
+not yet written up, so checking when unsure is cheap. Then read only the page it points
+at. Do not read `raw/`; it is source material already synthesized into the notes.
+
+**The Vision invariants below are already distilled from that vault.** Do not re-read it
+for those — consult it for everything else, and for the reasoning behind a decision the
+rules here only state.
+
+Reachable via `mcp__obsidian__*` when Obsidian is open, otherwise by direct path.
+
 ## Hard constraints
 
-| | |
-|---|---|
-| Device | iPhone 17, iOS 26.5 deployment target |
-| Simulator | **Never works.** Vision needs the Neural Engine. Physical device only. |
-| Deliverable | Squat, sagittal plane, side view. One movement done properly. |
-| Timeline | Act phase Aug 21 – Sep 4 2026. Code freeze Sep 3. |
+|             |                                                                        |
+| ----------- | ---------------------------------------------------------------------- |
+| Device      | iPhone 17, iOS 26.5 deployment target                                  |
+| Simulator   | **Never works.** Vision needs the Neural Engine. Physical device only. |
+| Deliverable | Squat, sagittal plane, side view. One movement done properly.          |
+| Timeline    | Act phase Aug 21 – Sep 4 2026. Code freeze Sep 3.                      |
 
 **Out of scope entirely:** CreateML, Watch companion, exercise auto-recognition, workout
 history, multi-person. Do not add these. Do not scaffold for them.
@@ -29,12 +45,12 @@ and hand it back — never claim behaviour is verified from a build that only co
 
 Issues on `fikrahdamar/woolone`, driven with `gh`. One issue = one build task.
 
-| Label | Meaning |
-|---|---|
-| `c4` | on every issue in this challenge |
-| `cycle-1` … `cycle-5` | which learning cycle it belongs to |
-| `invariant` | a violation of a Vision invariant — highest priority, these fail silently |
-| `spike` | a timeboxed question, output is an answer not code |
+| Label                 | Meaning                                                                   |
+| --------------------- | ------------------------------------------------------------------------- |
+| `c4`                  | on every issue in this challenge                                          |
+| `cycle-1` … `cycle-5` | which learning cycle it belongs to                                        |
+| `invariant`           | a violation of a Vision invariant — highest priority, these fail silently |
+| `spike`               | a timeboxed question, output is an answer not code                        |
 
 Rules:
 
@@ -44,6 +60,31 @@ Rules:
 - Reference the issue in the commit (`... (#7)`) so the diff and the ticket link themselves.
 - An issue whose acceptance criteria need a device stays open until it runs on the device.
   A green `xcodebuild` does not close it.
+
+## Workflow
+
+**Branches** — `<type>/<issue#>-<slug>`:
+
+```
+feat/7-live-knee-angle          new pipeline capability
+fix/12-nan-poisons-ema          something measures wrong
+chore/1-swift6-camera-permission  config, no behaviour change
+spike/27-vision-3d-leak-ios     timeboxed question
+docs/3-cycle1-writeup           learning write-up
+```
+
+Create with `gh issue develop <n> --name <branch> --checkout` — that links the branch to the
+issue on GitHub, which naming alone does not.
+
+**Base is `dev`.** `main` is release, `staging` cuts TestFlight builds.
+Merge forward only: `dev → staging → main`. Never cherry-pick between them.
+
+**Agents do not commit, push, merge, or close issues.** Write the code, run the build and the
+suite, report what happened, and stop. Git belongs to the user — this is deliberate, not an
+oversight. The same goes for Xcode build settings and any script under `scripts/`.
+
+**Issues labeled `needs-device` are closed by hand**, after the app runs on the phone. A green
+build and a passing suite never close one. Use `Refs #N` in those PRs, not `Closes #N`.
 
 ## Architecture — MVVM, one-way data flow
 
@@ -92,7 +133,7 @@ Every one of these fails **silently** — wrong number, no error, no low confide
    Never `VNDetectHumanBodyPoseRequest`. Reading an old tutorial: drop the `VN`, replace
    callbacks with `await`.
 2. **Pixels before any angle math.** Normalized coords are anisotropic — x and y are
-   normalized to width and height *separately*. Always
+   normalized to width and height _separately_. Always
    `location.toImageCoordinates(size, origin: .upperLeft)` first.
 3. **All-or-nothing joint arrays.** Filtering confidence after building the array lets a
    3-point array collapse to 2, and the angle function returns a plausible wrong number.
@@ -135,6 +176,32 @@ Vision renders nothing — all output is ours. In order of value:
 **Ship less than you draw.** Product overlay is three dots, two lines, one number:
 `hip ── knee ── ankle` + the angle, line turns red out of range.
 
+## Testing
+
+Swift Testing (`import Testing`, `@Test`, `#expect`), not XCTest.
+
+Test `Core/` only — pure functions, no camera, runs on the simulator. That the layering
+already forbids SwiftUI and `@MainActor` in `Core/` is what makes this possible; keep it that way.
+
+Two things earn a test because the alternative is worse:
+
+- **`angle()`** — the NaN case is invisible on device. Float error pushes the ratio past 1.0,
+  `acos` returns NaN, NaN enters the EMA, and the smoothed value never recovers. On screen that
+  looks like a frozen HUD, and you will hunt it in the camera layer.
+- **`RepCounter`** — verifying hysteresis by hand costs ten squats per threshold change.
+  A synthetic jittery waveform costs nothing.
+
+Once recorded sessions exist, they are the fixtures: replay all 20 through the counter and
+compare against the hand labels. Real data beats invented waveforms.
+
+Do not mock the camera or Vision. Untestable is untestable — verify those on device.
+
+Cycles 1-2 explore, cycles 3-5 test first. You cannot spec an API you have not seen return.
+
+```sh
+xcodebuild test -scheme woolone -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
 ## Swift style
 
 - `@Observable`, not `ObservableObject`/`@Published`.
@@ -146,6 +213,19 @@ Vision renders nothing — all output is ours. In order of value:
 - Value types by default. Reference types only for genuine shared identity (capture session).
 - No force unwrap outside `#Preview` and test fixtures.
 - `Info.plist` needs `NSCameraUsageDescription`.
+
+**Comments — one line, or none.**
+
+- At most **one** `///` line above a type or a non-obvious function. No multi-line doc blocks,
+  no `- Parameters:` / `- Returns:` ceremony. A three-line function does not need a five-line
+  header.
+- `//` explains **why**, never what. `// convert to pixels` above a conversion is noise;
+  `// normalized coords are anisotropic — angles on them are wrong` is the reason someone
+  needs six weeks from now.
+- Never stack `//` lines into a paragraph. If one clear line cannot carry it, the code needs
+  a better name or the explanation belongs in this file.
+- `// MARK:` is fine — it is navigation, not prose.
+- No commented-out code. Git remembers it.
 
 ## Standing principles
 

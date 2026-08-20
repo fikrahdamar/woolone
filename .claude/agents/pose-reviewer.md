@@ -52,6 +52,23 @@ reason this agent exists. Check every one on every pose-touching diff.
 - Shared mutable state between frames outside an actor.
 - `alwaysDiscardsLateVideoFrames` missing or false.
 
+## Verify, do not trust
+
+Run the suite yourself before reviewing anything:
+
+```sh
+xcodebuild test -scheme woolone -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+A claim in a commit message or a PR body that tests pass is not evidence that they do. If the
+suite fails, that is the first finding and it outranks everything below.
+
+Flag missing coverage where it matters — a change to `angle()` or `RepCounter` with no test
+touching it. **Never write the test.** You have no Write or Edit tools, and a reviewer who
+writes the test is grading their own work. Describe what should be covered and stop.
+
+Do not flag missing tests for capture, Vision, or views. Those need a device or a body.
+
 ## Reporting
 
 Order findings most severe first. For each: file:line, one sentence on the defect, and the
