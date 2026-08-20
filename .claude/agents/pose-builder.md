@@ -68,9 +68,13 @@ that violates them, and stop and flag it if asked to.
 
 ```sh
 xcodebuild -scheme woolone -destination 'generic/platform=iOS' build
+xcodebuild test -scheme woolone -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-That is a **compile** check. The simulator cannot run Vision — Neural Engine required.
+Any change under `Core/` must leave the test suite passing, not merely compiling. Report the
+actual result — never write that tests pass without having run them in this session.
+
+The build is a **compile** check. The simulator cannot run Vision — Neural Engine required.
 Never claim behaviour works from a build alone. If a change needs runtime proof, finish the
 code, say explicitly that it needs device verification, and list what to look for on screen.
 
