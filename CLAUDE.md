@@ -5,19 +5,9 @@ Full technical background: `C4-project-context.md`. Read it before non-trivial w
 
 ## Knowledge base
 
-Synthesized technical notes live in an Obsidian vault at
-`/Users/damars/obisidian-dev/damar-sec-brain` — Apple Vision,and another that already discussion on obsidian
-
-When a question touches technical ground I may have already researched, read
-`tech/index.md` there first — it is ~220 words and lists every page plus the raw sources
-not yet written up, so checking when unsure is cheap. Then read only the page it points
-at. Do not read `raw/`; it is source material already synthesized into the notes.
-
-**The Vision invariants below are already distilled from that vault.** Do not re-read it
-for those — consult it for everything else, and for the reasoning behind a decision the
-rules here only state.
-
-Reachable via `mcp__obsidian__*` when Obsidian is open, otherwise by direct path.
+The Vision invariants below are distilled from `tech/apple-vision-body-pose.md` in my
+Obsidian vault (located in `~/.claude/CLAUDE.md`). Do not re-read the vault for those —
+consult it for everything else, and for the reasoning behind a rule this file only states.
 
 ## Hard constraints
 
@@ -126,6 +116,10 @@ movement. No `SquatJudge: ExerciseJudge` subclassing.
 - No shared mutable state between frames outside an actor.
 
 ## Vision invariants — non-negotiable
+
+<!-- Distilled from vault tech/apple-vision-body-pose.md, synced 2026-08-20.
+     Re-check after any apple-vision ingest. If these and the vault disagree,
+     surface both and ask — see ~/.claude/CLAUDE.md. -->
 
 Every one of these fails **silently** — wrong number, no error, no low confidence.
 
