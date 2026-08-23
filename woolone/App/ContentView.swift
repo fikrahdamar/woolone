@@ -21,8 +21,9 @@ struct ContentView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Button("Run pose probe") {
+                guard !isRunning else { return }
+                isRunning = true
                 Task {
-                    isRunning = true
                     status = await probe.run()
                     isRunning = false
                 }
