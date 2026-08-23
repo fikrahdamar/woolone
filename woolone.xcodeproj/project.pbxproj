@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		06D86DA8303A9F070028DBAA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 06D4A0A8303598C6001598DE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 06D4A0AF303598C6001598DE;
+			remoteInfo = woolone;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		06D4A0B0303598C6001598DE /* woolone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = woolone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		06D86DA4303A9F070028DBAA /* wooloneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wooloneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +27,22 @@
 			path = woolone;
 			sourceTree = "<group>";
 		};
+		06D86DA5303A9F070028DBAA /* wooloneTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = wooloneTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		06D4A0AD303598C6001598DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06D86DA1303A9F070028DBAA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				06D4A0B2303598C6001598DE /* woolone */,
+				06D86DA5303A9F070028DBAA /* wooloneTests */,
 				06D4A0B1303598C6001598DE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				06D4A0B0303598C6001598DE /* woolone.app */,
+				06D86DA4303A9F070028DBAA /* wooloneTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = 06D4A0B0303598C6001598DE /* woolone.app */;
 			productType = "com.apple.product-type.application";
 		};
+		06D86DA3303A9F070028DBAA /* wooloneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06D86DAA303A9F070028DBAA /* Build configuration list for PBXNativeTarget "wooloneTests" */;
+			buildPhases = (
+				06D86DA0303A9F070028DBAA /* Sources */,
+				06D86DA1303A9F070028DBAA /* Frameworks */,
+				06D86DA2303A9F070028DBAA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				06D86DA9303A9F070028DBAA /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				06D86DA5303A9F070028DBAA /* wooloneTests */,
+			);
+			name = wooloneTests;
+			packageProductDependencies = (
+			);
+			productName = wooloneTests;
+			productReference = 06D86DA4303A9F070028DBAA /* wooloneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					06D4A0AF303598C6001598DE = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					06D86DA3303A9F070028DBAA = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 06D4A0AF303598C6001598DE;
 					};
 				};
 			};
@@ -100,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				06D4A0AF303598C6001598DE /* woolone */,
+				06D86DA3303A9F070028DBAA /* wooloneTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		06D4A0AE303598C6001598DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06D86DA2303A9F070028DBAA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		06D86DA0303A9F070028DBAA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		06D86DA9303A9F070028DBAA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 06D4A0AF303598C6001598DE /* woolone */;
+			targetProxy = 06D86DA8303A9F070028DBAA /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		06D4A0B9303598C7001598DE /* Debug */ = {
@@ -312,6 +387,48 @@
 			};
 			name = Release;
 		};
+		06D86DAB303A9F070028DBAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8K9W457NTR;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fdamars.wooloneTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/woolone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/woolone";
+			};
+			name = Debug;
+		};
+		06D86DAC303A9F070028DBAA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8K9W457NTR;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fdamars.wooloneTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/woolone.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/woolone";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -329,6 +446,15 @@
 			buildConfigurations = (
 				06D4A0BC303598C7001598DE /* Debug */,
 				06D4A0BD303598C7001598DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		06D86DAA303A9F070028DBAA /* Build configuration list for PBXNativeTarget "wooloneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06D86DAB303A9F070028DBAA /* Debug */,
+				06D86DAC303A9F070028DBAA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
