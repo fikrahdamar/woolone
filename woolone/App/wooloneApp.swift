@@ -11,7 +11,7 @@ import SwiftUI
 struct wooloneApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            CameraScreen()
         }
     }
 }
