@@ -75,7 +75,7 @@ nonisolated struct BodyPoseProbe {
 
     private func line(
         for name: HumanBodyPoseObservation.JointName,
-        joint: Joint?,
+        joint: Vision.Joint?,
         imageSize: CGSize
     ) -> String {
         let label = name.rawValue.padding(toLength: 14, withPad: " ", startingAt: 0)
