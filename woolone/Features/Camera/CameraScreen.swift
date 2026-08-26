@@ -14,8 +14,26 @@ struct CameraScreen: View {
         ZStack(alignment: .topLeading) {
             CameraPreviewView(camera: viewModel.camera)
                 .ignoresSafeArea()
-            CaptureHUDView(stats: viewModel.stats, status: viewModel.statusText)
-                .padding()
+            PoseOverlayView(
+                joints: viewModel.legJoints,
+                imageSize: viewModel.pose?.imageSize ?? .zero
+            )
+                .ignoresSafeArea()
+            CaptureHUDView(
+                stats: viewModel.stats,
+                poseStats: viewModel.poseStats,
+                pose: viewModel.pose,
+                camera: viewModel.cameraText,
+                status: viewModel.statusText
+            )
+            .padding()
+        }
+        .overlay(alignment: .bottom) {
+            Button("flip camera") {
+                Task { await viewModel.flipCamera() }
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.bottom, 32)
         }
         .task { await viewModel.start() }
     }
