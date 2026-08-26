@@ -19,19 +19,55 @@ final class CameraViewModel {
         case failed(String)
     }
 
-    let camera = CameraSession()
+    let camera: CameraSession
     private(set) var status: Status = .idle
     private(set) var stats = CaptureStats.idle
+    private(set) var poseStats = PoseStats.idle
+    private(set) var pose: PoseFrame?
+    private(set) var legJoints: [Joint] = []
+    private(set) var facing: CameraFacing = .back
 
-    private var statsTask: Task<Void, Never>?
+    private let source: any PoseSource
+    private var tasks: [Task<Void, Never>] = []
+    private var isSwitchingCamera = false
+    private var legSelector = LegSelector()
+
+    init(camera: CameraSession = CameraSession()) {
+        self.camera = camera
+        source = LiveCameraSource(camera: camera)
+    }
 
     var statusText: String {
         switch status {
         case .idle: "camera off"
         case .starting: "starting"
-        case .running: "running"
+        case .running: pose == nil ? "warming up — the first frame compiles the model" : "running"
         case .denied: "camera access denied — enable it in Settings"
         case .failed(let reason): "failed: \(reason)"
+        }
+    }
+
+    var cameraText: String {
+        facing == .front
+            ? "camera front · the view is a mirror, so left and right joint names are swapped"
+            : "camera back"
+    }
+
+    /// Front camera exists to check the overlay against yourself — judging still means the back camera, side on.
+    func flipCamera() async {
+        guard status == .running, !isSwitchingCamera else { return }
+        isSwitchingCamera = true
+        defer { isSwitchingCamera = false }
+
+        let target = facing.flipped
+        do {
+            try await source.use(target)
+            facing = target
+            legSelector.reset()
+        } catch let failure as CameraSession.Failure {
+            status = .failed(failure.description)
+        } catch {
+            status = .failed(error.localizedDescription)
         }
     }
 
@@ -46,9 +82,9 @@ final class CameraViewModel {
             return
         }
 
-        observeStats()
+        observe()
         do {
-            try await camera.start()
+            try await source.start()
             status = .running
         } catch let failure as CameraSession.Failure {
             status = .failed(failure.description)
@@ -58,20 +94,35 @@ final class CameraViewModel {
     }
 
     func stop() async {
-        statsTask?.cancel()
-        statsTask = nil
-        await camera.stop()
+        tasks.forEach { $0.cancel() }
+        tasks.removeAll()
+        await source.stop()
         status = .idle
+        pose = nil
+        legJoints = []
+        legSelector.reset()
     }
 
-    private func observeStats() {
-        guard statsTask == nil else { return }
-        // the one main-actor crossing in the pipeline, and it happens once a second, not once a frame
-        statsTask = Task { [weak self, camera] in
+    private func observe() {
+        guard tasks.isEmpty else { return }
+        // the one main-actor crossing per frame in the whole pipeline
+        tasks.append(Task { [weak self, source] in
+            for await frame in source.poseFrames {
+                guard let self else { return }
+                pose = frame
+                legJoints = legSelector.select(from: frame)
+            }
+        })
+        tasks.append(Task { [weak self, source] in
+            for await value in source.poseStats {
+                self?.poseStats = value
+            }
+        })
+        tasks.append(Task { [weak self, camera] in
             for await value in camera.stats {
                 self?.stats = value
             }
-        }
+        })
     }
 
     private static var isRunningInPreview: Bool {
