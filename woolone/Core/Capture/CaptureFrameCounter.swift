@@ -8,23 +8,29 @@
 import AVFoundation
 import Foundation
 
-/// Counts delivered and dropped frames on the capture queue and publishes one CaptureStats per second.
+/// Counts frames on the capture queue, publishes one CaptureStats per second, and hands each buffer onward.
 // @unchecked: every stored property is touched only from the serial capture queue the delegate is set on
 nonisolated final class CaptureFrameCounter: NSObject, @unchecked Sendable {
     private static let windowNanoseconds: UInt64 = 1_000_000_000
 
-    private let continuation: AsyncStream<CaptureStats>.Continuation
+    private let statsContinuation: AsyncStream<CaptureStats>.Continuation
+    private let frameContinuation: AsyncStream<CapturedFrame>.Continuation
     private var deliveredFrames = 0
     private var droppedFrames = 0
     private var windowFrames = 0
     private var windowStart = DispatchTime.now().uptimeNanoseconds
 
-    init(continuation: AsyncStream<CaptureStats>.Continuation) {
-        self.continuation = continuation
+    init(
+        stats: AsyncStream<CaptureStats>.Continuation,
+        frames: AsyncStream<CapturedFrame>.Continuation
+    ) {
+        statsContinuation = stats
+        frameContinuation = frames
     }
 
     deinit {
-        continuation.finish()
+        statsContinuation.finish()
+        frameContinuation.finish()
     }
 
     private func publishIfWindowElapsed() {
@@ -37,7 +43,7 @@ nonisolated final class CaptureFrameCounter: NSObject, @unchecked Sendable {
         windowFrames = 0
         windowStart = now
 
-        continuation.yield(
+        statsContinuation.yield(
             CaptureStats(
                 framesPerSecond: fps,
                 deliveredFrames: deliveredFrames,
@@ -59,6 +65,15 @@ nonisolated extension CaptureFrameCounter: AVCaptureVideoDataOutputSampleBufferD
     ) {
         deliveredFrames += 1
         windowFrames += 1
+        // yield, never detect: Vision on this queue is what stalls the pump
+        if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            frameContinuation.yield(
+                CapturedFrame(
+                    pixelBuffer: pixelBuffer,
+                    presentationTime: CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                )
+            )
+        }
         publishIfWindowElapsed()
     }
 
