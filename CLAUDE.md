@@ -165,7 +165,11 @@ Vision renders nothing — all output is ours. In order of value:
    live angle, state, rep count. Can't read the console while squatting. Also the demo safety net.
 3. **Skeleton overlay** — joints colored by confidence. Full 19-joint skeleton stays behind a
    debug toggle.
-4. **Console prints throttled** — `if frameCount % 30 == 0`. 30fps × 19 joints floods Xcode.
+4. **Never print from the capture queue** — not even throttled. One `print` per second on the
+   sample-buffer queue dropped 95% of frames under an attached debugger (29.8fps → 1.5fps, #4):
+   a synchronous debug write blocks a serial queue governed by `alwaysDiscardsLateVideoFrames`.
+   Debug output belongs on the HUD. Elsewhere, console prints stay throttled —
+   `if frameCount % 30 == 0`.
 
 **Ship less than you draw.** Product overlay is three dots, two lines, one number:
 `hip ── knee ── ankle` + the angle, line turns red out of range.
@@ -224,6 +228,9 @@ xcodebuild test -scheme woolone -destination 'platform=iOS Simulator,name=iPhone
 ## Standing principles
 
 - Rep counting and form judging are different signals.
+- Nothing expensive on the capture queue. Vision runs off it; frames drop under load and that is
+  correct — dropping is what keeps the overlay on the body instead of seconds behind it.
+- The probe changes what it measures. Verify timing on device, on screen, debugger detached.
 - Convert to pixels before any angle math.
 - All-or-nothing on joint arrays. A collapsed array lies silently.
 - Judge at the bottom of the rep.
