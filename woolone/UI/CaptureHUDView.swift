@@ -11,6 +11,8 @@ struct CaptureHUDView: View {
     let stats: CaptureStats
     let poseStats: PoseStats
     let pose: PoseFrame?
+    let kneeAngle: String
+    let hasReading: Bool
     let weakJoints: String?
     let camera: String
     let status: String
@@ -20,8 +22,11 @@ struct CaptureHUDView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(rateLine)
+            Text(kneeAngle)
+                .font(.system(size: 22, design: .monospaced))
                 .fontWeight(.semibold)
+                .foregroundStyle(hasReading ? Color.primary : Color.orange)
+            Text(rateLine)
             if isExpanded {
                 Text(inferenceLine)
                 Text(jointLine)
@@ -102,6 +107,8 @@ struct CaptureHUDView: View {
             peakInferenceMilliseconds: 48.9
         ),
         pose: nil,
+        kneeAngle: "knee 118.4°",
+        hasReading: true,
         weakJoints: "left ankle 0.41 · right knee 0.28",
         camera: "camera back",
         status: "running"

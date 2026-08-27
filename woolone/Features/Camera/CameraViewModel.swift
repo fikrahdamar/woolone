@@ -25,6 +25,7 @@ final class CameraViewModel {
     private(set) var poseStats = PoseStats.idle
     private(set) var pose: PoseFrame?
     private(set) var legJoints: [Joint] = []
+    private(set) var kneeAngle: CGFloat?
     private(set) var facing: CameraFacing = .back
     private(set) var showsAllJoints = false
 
@@ -46,6 +47,12 @@ final class CameraViewModel {
         case .denied: "camera access denied — enable it in Settings"
         case .failed(let reason): "failed: \(reason)"
         }
+    }
+
+    /// A missing angle says so out loud — a stale number sitting there looking live is the dangerous failure.
+    var kneeAngleText: String {
+        guard let kneeAngle else { return "knee — no reading" }
+        return String(format: "knee %.1f°", kneeAngle)
     }
 
     /// Names the joints that fell below the draw gate — a colour says which band, not which joint.
@@ -128,6 +135,7 @@ final class CameraViewModel {
         status = .idle
         pose = nil
         legJoints = []
+        kneeAngle = nil
         legSelector.reset()
     }
 
@@ -139,6 +147,8 @@ final class CameraViewModel {
                 guard let self else { return }
                 pose = frame
                 legJoints = legSelector.select(from: frame)
+                // the angle follows the leg the selector settled on, so the line and the number agree
+                kneeAngle = legSelector.side.flatMap { frame.kneeAngle($0) }
             }
         })
         tasks.append(Task { [weak self, source] in
