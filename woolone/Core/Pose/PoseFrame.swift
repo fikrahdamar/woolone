@@ -33,6 +33,16 @@ nonisolated struct PoseFrame: Sendable {
         joints.values.filter { $0.confidence >= PoseConfidence.draw }.count
     }
 
+    /// Everything Vision returned, gates included — the debug view, not the product one.
+    var allJoints: [Joint] { Array(joints.values) }
+
+    /// Joints below the draw gate, worst first — the ones about to cost you a reading.
+    var weakJoints: [Joint] {
+        joints.values
+            .filter { $0.confidence < PoseConfidence.draw }
+            .sorted { $0.confidence < $1.confidence }
+    }
+
     /// hip, knee, ankle — empty unless all three clear the draw gate.
     var leftLeg: [Joint] { leg(.leftHip, .leftKnee, .leftAnkle) }
     var rightLeg: [Joint] { leg(.rightHip, .rightKnee, .rightAnkle) }
