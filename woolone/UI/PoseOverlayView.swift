@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Three dots on hip, knee and ankle — a wrong pixel conversion is invisible in a number and obvious here.
+/// Dots on the joints — a wrong pixel conversion is invisible in a number and obvious here.
 struct PoseOverlayView: View {
     let joints: [Joint]
     let imageSize: CGSize
@@ -18,13 +18,22 @@ struct PoseOverlayView: View {
                 let fill = AspectFill(imageSize: imageSize, viewSize: geometry.size)
                 ForEach(joints, id: \.name) { joint in
                     Circle()
-                        .fill(.green)
-                        .frame(width: 16, height: 16)
+                        .fill(colour(for: joint.confidence))
+                        .frame(width: 14, height: 14)
                         .position(fill.point(joint.position))
                 }
             }
         }
         .allowsHitTesting(false)
+    }
+
+    // the band comes from Core; the View only decides what each band looks like
+    private func colour(for confidence: Float) -> Color {
+        switch ConfidenceBand(confidence) {
+        case .drawable: .green
+        case .judgeableOnly: .yellow
+        case .unusable: .red
+        }
     }
 }
 

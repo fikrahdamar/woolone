@@ -15,7 +15,7 @@ struct CameraScreen: View {
             CameraPreviewView(camera: viewModel.camera)
                 .ignoresSafeArea()
             PoseOverlayView(
-                joints: viewModel.legJoints,
+                joints: viewModel.overlayJoints,
                 imageSize: viewModel.pose?.imageSize ?? .zero
             )
                 .ignoresSafeArea()
@@ -23,17 +23,25 @@ struct CameraScreen: View {
                 stats: viewModel.stats,
                 poseStats: viewModel.poseStats,
                 pose: viewModel.pose,
+                weakJoints: viewModel.weakJointsText,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText
             )
             .padding()
         }
-        .overlay(alignment: .bottom) {
-            Button("flip camera") {
-                Task { await viewModel.flipCamera() }
+        // top right, never the bottom — the feet live down there and the ankle is the joint most at risk
+        .overlay(alignment: .topTrailing) {
+            VStack(alignment: .trailing, spacing: 8) {
+                Button("flip") {
+                    Task { await viewModel.flipCamera() }
+                }
+                Button(viewModel.showsAllJoints ? "leg" : "all") {
+                    viewModel.toggleAllJoints()
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.bottom, 32)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .padding()
         }
         .task { await viewModel.start() }
     }
