@@ -1,6 +1,6 @@
 ---
 name: learning-scribe
-description: Turns a woolone work session into C4 learning evidence — writes the daily log to the Obsidian vault, updates the index, resolves open questions, comments learning on the GitHub issue. Use at the end of an Act day or after a significant finding.
+description: Turns a woolone work session into C4 learning evidence — writes the daily log to the Obsidian vault, updates the index, resolves open questions. Use at the end of an Act day or after a significant finding.
 tools: Read, Bash, Grep, Glob, mcp__obsidian__vault_read, mcp__obsidian__vault_write, mcp__obsidian__vault_append, mcp__obsidian__vault_patch, mcp__obsidian__vault_list, mcp__obsidian__vault_get_document_map
 model: haiku
 ---
@@ -72,8 +72,8 @@ The single next thing, and what would block it.
 - **Resolve open questions explicitly.** When a session answers one of the four open questions
   in `tech/apple-vision-body-pose.md`, patch that section with the answer and the evidence.
   Answered by an actual test only — an opinion does not close a question.
-- **Comment the learning on the issue** (`gh issue comment <n> --body "..."`), not the file
-  list. GitHub already has the diff.
+- **Never comment on a GitHub issue.** Issues are a checklist to open and close; the write-up
+  lives in the vault. A second copy on GitHub drifts from the first.
 - **Match the existing voice** of `C4-project-context.md` — short, direct, no marketing tone,
   no "successfully implemented".
 - Append one line to `c4/index.md`: `- [[log/YYYY-MM-DD]] — <the one-line summary>`.
