@@ -44,14 +44,26 @@ nonisolated struct PoseFrame: Sendable {
     }
 
     /// hip, knee, ankle — empty unless all three clear the draw gate.
-    var leftLeg: [Joint] { leg(.leftHip, .leftKnee, .leftAnkle) }
-    var rightLeg: [Joint] { leg(.rightHip, .rightKnee, .rightAnkle) }
+    var leftLeg: [Joint] { leg(.left, above: PoseConfidence.draw) }
+    var rightLeg: [Joint] { leg(.right, above: PoseConfidence.draw) }
 
-    // all-or-nothing: a two-joint leg still draws, and the joint that vanished is the one you needed
-    private func leg(_ names: HumanBodyPoseObservation.JointName...) -> [Joint] {
+    /// Knee angle in degrees, judged not drawn — nil the moment any of the three is missing or unsure.
+    func kneeAngle(_ side: LegSelector.Side) -> CGFloat? {
+        let joints = leg(side, above: PoseConfidence.judge)
+        guard joints.count == 3 else { return nil }
+        return angle(joints[0].position, joints[1].position, joints[2].position)
+    }
+
+    /// hip, knee, ankle in that order — the drawing order and the angle's argument order are the same one.
+    func leg(_ side: LegSelector.Side, above gate: Float) -> [Joint] {
+        let names: [HumanBodyPoseObservation.JointName] = side == .left
+            ? [.leftHip, .leftKnee, .leftAnkle]
+            : [.rightHip, .rightKnee, .rightAnkle]
+
+        // all-or-nothing: a two-joint leg still draws, and the joint that vanished is the one you needed
         let found = names.compactMap { joints[$0] }
         guard found.count == names.count,
-              found.allSatisfy({ $0.confidence >= PoseConfidence.draw }) else { return [] }
+              found.allSatisfy({ $0.confidence >= gate }) else { return [] }
         return found
     }
 }
