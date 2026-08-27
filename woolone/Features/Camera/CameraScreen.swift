@@ -16,6 +16,7 @@ struct CameraScreen: View {
                 .ignoresSafeArea()
             PoseOverlayView(
                 joints: viewModel.overlayJoints,
+                chain: viewModel.legJoints,
                 imageSize: viewModel.pose?.imageSize ?? .zero
             )
                 .ignoresSafeArea()
@@ -23,6 +24,8 @@ struct CameraScreen: View {
                 stats: viewModel.stats,
                 poseStats: viewModel.poseStats,
                 pose: viewModel.pose,
+                kneeAngle: viewModel.kneeAngleText,
+                hasReading: viewModel.kneeAngle != nil,
                 weakJoints: viewModel.weakJointsText,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText
