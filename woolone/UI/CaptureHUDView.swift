@@ -11,6 +11,7 @@ struct CaptureHUDView: View {
     let stats: CaptureStats
     let poseStats: PoseStats
     let pose: PoseFrame?
+    let weakJoints: String?
     let camera: String
     let status: String
 
@@ -25,6 +26,10 @@ struct CaptureHUDView: View {
                 Text(inferenceLine)
                 Text(jointLine)
                     .foregroundStyle(pose?.hasPerson == true ? .green : .orange)
+                if let weakJoints {
+                    Text(weakJoints)
+                        .foregroundStyle(.yellow)
+                }
                 Text(bufferLine)
                     .foregroundStyle(isBufferLandscape ? .red : .primary)
                 Text("frames \(stats.deliveredFrames) · dropped \(stats.droppedFrames)")
@@ -97,6 +102,7 @@ struct CaptureHUDView: View {
             peakInferenceMilliseconds: 48.9
         ),
         pose: nil,
+        weakJoints: "left ankle 0.41 · right knee 0.28",
         camera: "camera back",
         status: "running"
     )

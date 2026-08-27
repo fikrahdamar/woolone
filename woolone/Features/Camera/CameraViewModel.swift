@@ -26,6 +26,7 @@ final class CameraViewModel {
     private(set) var pose: PoseFrame?
     private(set) var legJoints: [Joint] = []
     private(set) var facing: CameraFacing = .back
+    private(set) var showsAllJoints = false
 
     private let source: any PoseSource
     private var tasks: [Task<Void, Never>] = []
@@ -45,6 +46,33 @@ final class CameraViewModel {
         case .denied: "camera access denied — enable it in Settings"
         case .failed(let reason): "failed: \(reason)"
         }
+    }
+
+    /// Names the joints that fell below the draw gate — a colour says which band, not which joint.
+    var weakJointsText: String? {
+        guard let pose, pose.hasPerson else { return nil }
+        let weak = pose.weakJoints
+        guard !weak.isEmpty else { return nil }
+
+        // hip, knee and ankle always show — hiding one inside "+3" hides the reason the angle vanished
+        let measuring = weak.filter(\.measuresKneeAngle)
+        let others = weak.filter { !$0.measuresKneeAngle }
+        let shown = measuring + others.prefix(max(0, 3 - measuring.count))
+
+        let text = shown
+            .map { "\($0.label) \(String(format: "%.2f", $0.confidence))" }
+            .joined(separator: " · ")
+        let rest = weak.count - shown.count
+        return text + (rest > 0 ? " +\(rest)" : "")
+    }
+
+    /// The product overlay is the leg; the full set is the debug view that shows what drops out.
+    var overlayJoints: [Joint] {
+        showsAllJoints ? (pose?.allJoints ?? []) : legJoints
+    }
+
+    func toggleAllJoints() {
+        showsAllJoints.toggle()
     }
 
     var cameraText: String {
