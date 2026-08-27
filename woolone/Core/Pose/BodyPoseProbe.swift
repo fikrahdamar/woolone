@@ -114,11 +114,8 @@ nonisolated struct BodyPoseProbe {
 
         var size = CGSize(width: image.width, height: image.height)
         // Vision normalizes against the oriented image, so a quarter-turn EXIF tag swaps the axes
-        switch orientation {
-        case .left, .leftMirrored, .right, .rightMirrored:
+        if orientation.swapsAxes {
             size = CGSize(width: size.height, height: size.width)
-        default:
-            break
         }
         return ImageSource(image: image, size: size, orientation: orientation)
     }
