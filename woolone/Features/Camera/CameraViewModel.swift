@@ -78,6 +78,11 @@ final class CameraViewModel {
         showsAllJoints ? (pose?.allJoints ?? []) : legJoints
     }
 
+    var overlayChains: [[Joint]] {
+        guard showsAllJoints else { return legJoints.isEmpty ? [] : [legJoints] }
+        return pose?.chains(above: PoseConfidence.draw) ?? []
+    }
+
     func toggleAllJoints() {
         showsAllJoints.toggle()
     }
