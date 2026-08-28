@@ -59,11 +59,23 @@ nonisolated struct PoseFrame: Sendable {
         let names: [HumanBodyPoseObservation.JointName] = side == .left
             ? [.leftHip, .leftKnee, .leftAnkle]
             : [.rightHip, .rightKnee, .rightAnkle]
+        return chain(names, above: gate) ?? []
+    }
 
-        // all-or-nothing: a two-joint leg still draws, and the joint that vanished is the one you needed
+    /// Every bone chain whose joints all clear the gate — the debug skeleton.
+    func chains(above gate: Float) -> [[Joint]] {
+        Skeleton.chains.compactMap { chain($0, above: gate) }
+    }
+
+    // all-or-nothing: a chain missing a joint is dropped whole, never shortened — a shortened arm
+    // draws shoulder straight to wrist and looks like a pose rather than a gap
+    private func chain(
+        _ names: [HumanBodyPoseObservation.JointName],
+        above gate: Float
+    ) -> [Joint]? {
         let found = names.compactMap { joints[$0] }
         guard found.count == names.count,
-              found.allSatisfy({ $0.confidence >= gate }) else { return [] }
+              found.allSatisfy({ $0.confidence >= gate }) else { return nil }
         return found
     }
 }
