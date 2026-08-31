@@ -14,6 +14,7 @@ struct CaptureHUDView: View {
     let kneeAngle: String
     let hasReading: Bool
     let weakJoints: String?
+    let recording: RecordingStats
     let camera: String
     let status: String
 
@@ -27,6 +28,11 @@ struct CaptureHUDView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(hasReading ? Color.primary : Color.orange)
             Text(rateLine)
+            // stays visible collapsed: a set recorded to a file nobody knew was open is 20 sets, not 19
+            if let recordingLine {
+                Text(recordingLine)
+                    .foregroundStyle(recordingColour)
+            }
             if isExpanded {
                 Text(inferenceLine)
                 Text(jointLine)
@@ -63,6 +69,24 @@ struct CaptureHUDView: View {
             poseStats.framesPerSecond,
             poseStats.meanInferenceMilliseconds
         )
+    }
+
+    private var recordingLine: String? {
+        guard recording.isRecording || recording.framesWritten > 0 else { return nil }
+        let line = (recording.isRecording ? "rec " : "saved ")
+            + (recording.condition ?? "recording")
+            + String(
+                format: " · %d frames · %.1fs · %.2f ms",
+                recording.framesWritten,
+                recording.seconds,
+                recording.meanCostMilliseconds
+            )
+        guard recording.writeFailures > 0 else { return line }
+        return line + " · \(recording.writeFailures) WRITES FAILED"
+    }
+
+    private var recordingColour: Color {
+        recording.isRecording || recording.writeFailures > 0 ? .red : .secondary
     }
 
     private var inferenceLine: String {
@@ -110,6 +134,14 @@ struct CaptureHUDView: View {
         kneeAngle: "knee 118.4°",
         hasReading: true,
         weakJoints: "left ankle 0.41 · right knee 0.28",
+        recording: RecordingStats(
+            isRecording: true,
+            condition: "off axis",
+            framesWritten: 412,
+            seconds: 13.7,
+            meanCostMilliseconds: 0.31,
+            writeFailures: 0
+        ),
         camera: "camera back",
         status: "running"
     )
