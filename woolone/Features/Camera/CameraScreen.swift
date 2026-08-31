@@ -27,6 +27,7 @@ struct CameraScreen: View {
                 kneeAngle: viewModel.kneeAngleText,
                 hasReading: viewModel.kneeAngle != nil,
                 weakJoints: viewModel.weakJointsText,
+                recording: viewModel.recording,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText
             )
@@ -35,9 +36,24 @@ struct CameraScreen: View {
         // top right, never the bottom — the feet live down there and the ankle is the joint most at risk
         .overlay(alignment: .topTrailing) {
             VStack(alignment: .trailing, spacing: 8) {
+                if viewModel.recording.isRecording {
+                    Button("stop", role: .destructive) {
+                        Task { await viewModel.stopRecording() }
+                    }
+                } else {
+                    // a menu, not a text field — no keyboard between you and the set
+                    Menu("rec") {
+                        ForEach(RecordingCondition.allCases, id: \.self) { condition in
+                            Button(condition.label) {
+                                Task { await viewModel.startRecording(condition) }
+                            }
+                        }
+                    }
+                }
                 Button("flip") {
                     Task { await viewModel.flipCamera() }
                 }
+                .disabled(!viewModel.canFlipCamera)
                 Button(viewModel.showsAllJoints ? "leg" : "all") {
                     viewModel.toggleAllJoints()
                 }
