@@ -13,6 +13,21 @@ nonisolated extension CGImagePropertyOrientation {
         self == .left || self == .leftMirrored || self == .right || self == .rightMirrored
     }
 
+    /// The reverse of `label` — a recording header names the orientation it was shot under in words.
+    init?(label: String) {
+        switch label {
+        case "up": self = .up
+        case "down": self = .down
+        case "left": self = .left
+        case "right": self = .right
+        case "upMirrored": self = .upMirrored
+        case "downMirrored": self = .downMirrored
+        case "leftMirrored": self = .leftMirrored
+        case "rightMirrored": self = .rightMirrored
+        default: return nil
+        }
+    }
+
     var label: String {
         switch self {
         case .up: "up"
