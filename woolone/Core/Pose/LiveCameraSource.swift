@@ -14,14 +14,16 @@ actor LiveCameraSource: PoseSource {
 
     private let camera: CameraSession
     private let detector = PoseDetector()
+    private let logger: FrameLogger?
     private let frameContinuation: AsyncStream<PoseFrame>.Continuation
     private let statsContinuation: AsyncStream<PoseStats>.Continuation
     private var pumpTask: Task<Void, Never>?
     private var facing: CameraFacing
 
-    init(camera: CameraSession, facing: CameraFacing = .back) {
+    init(camera: CameraSession, facing: CameraFacing = .back, logger: FrameLogger? = nil) {
         self.camera = camera
         self.facing = facing
+        self.logger = logger
         let (frames, frameContinuation) = AsyncStream.makeStream(
             of: PoseFrame.self,
             bufferingPolicy: .bufferingNewest(1)
@@ -62,7 +64,7 @@ actor LiveCameraSource: PoseSource {
 
     private func startPump() {
         guard pumpTask == nil else { return }
-        pumpTask = Task { [camera, detector, frameContinuation, statsContinuation] in
+        pumpTask = Task { [camera, detector, logger, frameContinuation, statsContinuation] in
             var window = PoseRateWindow(start: Self.now())
             var failures = 0
             for await frame in camera.frames {
@@ -70,6 +72,7 @@ actor LiveCameraSource: PoseSource {
                 do {
                     let pose = try await detector.detect(frame)
                     frameContinuation.yield(pose)
+                    await logger?.record(pose)
                     if let stats = window.record(
                         inferenceMilliseconds: pose.inferenceMilliseconds,
                         at: Self.now()
