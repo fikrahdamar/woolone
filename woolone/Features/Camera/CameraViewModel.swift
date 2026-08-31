@@ -28,15 +28,17 @@ final class CameraViewModel {
     private(set) var kneeAngle: CGFloat?
     private(set) var facing: CameraFacing = .back
     private(set) var showsAllJoints = false
+    private(set) var recording = RecordingStats.idle
 
     private let source: any PoseSource
+    private let logger = FrameLogger()
     private var tasks: [Task<Void, Never>] = []
     private var isSwitchingCamera = false
     private var legSelector = LegSelector()
 
     init(camera: CameraSession = CameraSession()) {
         self.camera = camera
-        source = LiveCameraSource(camera: camera)
+        source = LiveCameraSource(camera: camera, logger: logger)
     }
 
     var statusText: String {
@@ -93,9 +95,28 @@ final class CameraViewModel {
             : "camera back"
     }
 
+    /// The header records the camera once, so a flip mid-recording would transpose half the file silently.
+    var canFlipCamera: Bool { status == .running && !recording.isRecording }
+
+    /// Refuses before the first frame: the header needs a real image size and orientation, not a guess.
+    func startRecording(_ condition: RecordingCondition) async {
+        guard let pose, status == .running, !recording.isRecording else { return }
+        do {
+            try await logger.start(condition, camera: facing, sample: pose)
+        } catch let failure as FrameLogger.Failure {
+            status = .failed(failure.description)
+        } catch {
+            status = .failed(error.localizedDescription)
+        }
+    }
+
+    func stopRecording() async {
+        await logger.stop()
+    }
+
     /// Front camera exists to check the overlay against yourself — judging still means the back camera, side on.
     func flipCamera() async {
-        guard status == .running, !isSwitchingCamera else { return }
+        guard canFlipCamera, !isSwitchingCamera else { return }
         isSwitchingCamera = true
         defer { isSwitchingCamera = false }
 
@@ -164,6 +185,11 @@ final class CameraViewModel {
         tasks.append(Task { [weak self, camera] in
             for await value in camera.stats {
                 self?.stats = value
+            }
+        })
+        tasks.append(Task { [weak self, logger] in
+            for await value in logger.stats {
+                self?.recording = value
             }
         })
     }
