@@ -32,14 +32,16 @@ struct CaptureHUDView: View {
                 .font(.system(size: 22, design: .monospaced))
                 .fontWeight(.semibold)
                 .foregroundStyle(hasReading ? Color.primary : Color.orange)
-            // above the rate line and never collapsed: this is the one thing you act on before a set
+            // large on purpose: this is read from three metres away, not from arm's length
             Text(setup)
+                .font(.system(size: 20, design: .monospaced))
+                .fontWeight(.semibold)
                 .foregroundStyle(isArmed ? Color.green : Color.orange)
             // the product's actual output: what the last rep measured and what it needed
             if let verdict {
                 Text(verdict)
-                    .font(.system(size: 15, design: .monospaced))
-                    .fontWeight(.semibold)
+                    .font(.system(size: 20, design: .monospaced))
+                    .fontWeight(.bold)
                     .foregroundStyle(verdictPassed ? Color.green : Color.red)
             }
             // raw is the big number above; this is what smoothing and counting made of it
