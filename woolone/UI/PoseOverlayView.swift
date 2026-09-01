@@ -12,6 +12,8 @@ struct PoseOverlayView: View {
     let joints: [Joint]
     let chains: [[Joint]]
     let imageSize: CGSize
+    /// The measured angle is outside the fault's range right now — readable across a room, unlike a number.
+    var isFaulted = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -27,7 +29,10 @@ struct PoseOverlayView: View {
                         }
                     }
                 }
-                .stroke(.green, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                .stroke(
+                    isFaulted ? .red : .green,
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                )
                 ForEach(joints, id: \.name) { joint in
                     Circle()
                         .fill(colour(for: joint.confidence))

@@ -54,6 +54,20 @@ nonisolated struct PoseFrame: Sendable {
         return angle(joints[0].position, joints[1].position, joints[2].position)
     }
 
+    /// The angle at the middle joint of any triple, mirrored onto the side being judged.
+    // this is what lets an exercise name its own measurement: a second movement is a new
+    // ExerciseDefinition value with a different triple, not a new type
+    func measuredAngle(
+        of names: [HumanBodyPoseObservation.JointName],
+        on side: LegSelector.Side
+    ) -> CGFloat? {
+        let wanted = side == .left ? names : names.map(\.mirrored)
+        guard let found = chain(wanted, above: PoseConfidence.judge), found.count == 3 else {
+            return nil
+        }
+        return angle(found[0].position, found[1].position, found[2].position)
+    }
+
     /// hip, knee, ankle in that order — the drawing order and the angle's argument order are the same one.
     func leg(_ side: LegSelector.Side, above gate: Float) -> [Joint] {
         let names: [HumanBodyPoseObservation.JointName] = side == .left
