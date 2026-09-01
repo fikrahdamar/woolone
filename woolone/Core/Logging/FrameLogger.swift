@@ -15,6 +15,7 @@ actor FrameLogger {
     nonisolated let stats: AsyncStream<RecordingStats>
 
     private let statsContinuation: AsyncStream<RecordingStats>.Continuation
+    private let directory: URL
     private var handle: FileHandle?
     private var url: URL?
     private var condition: RecordingCondition?
@@ -24,7 +25,9 @@ actor FrameLogger {
     private var costSeconds: Double = 0
     private var writeFailures = 0
 
-    init() {
+    // injectable so tests write to their own directory instead of racing in the app's Documents
+    init(directory: URL = FrameLogger.documents) {
+        self.directory = directory
         let (stream, continuation) = AsyncStream.makeStream(
             of: RecordingStats.self,
             bufferingPolicy: .bufferingNewest(1)
@@ -45,7 +48,8 @@ actor FrameLogger {
     func start(_ condition: RecordingCondition, camera: CameraFacing, sample: PoseFrame) throws -> URL {
         guard handle == nil else { throw Failure.alreadyRecording }
 
-        let destination = Self.documents.appendingPathComponent(Self.filename(condition))
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let destination = destination(for: condition)
         let header = try RecordingHeader(
             condition: condition,
             camera: camera,
@@ -133,6 +137,19 @@ actor FrameLogger {
 
     static var documents: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    // names collide at one-second resolution, and createFile would silently overwrite the older set
+    private func destination(for condition: RecordingCondition) -> URL {
+        let base = directory.appendingPathComponent(Self.filename(condition))
+        guard FileManager.default.fileExists(atPath: base.path) else { return base }
+
+        let stem = base.deletingPathExtension().lastPathComponent
+        for suffix in 2...99 {
+            let candidate = directory.appendingPathComponent("\(stem)-\(suffix).ndjson")
+            if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+        }
+        return base
     }
 
     private static func filename(_ condition: RecordingCondition) -> String {

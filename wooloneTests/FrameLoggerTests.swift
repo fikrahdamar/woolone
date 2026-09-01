@@ -14,7 +14,7 @@ import Vision
 struct FrameLoggerTests {
     /// The round trip is the acceptance criterion: a log ReplaySource cannot read taught nothing.
     @Test func aFinishedRecordingReadsBackAsTheFramesThatWentIn() async throws {
-        let logger = FrameLogger()
+        let logger = FrameLogger(directory: Self.temporary())
         let url = try await logger.start(.cleanSide, camera: .back, sample: Self.pose())
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -35,7 +35,7 @@ struct FrameLoggerTests {
     }
 
     @Test func theHeaderDescribesTheSetupTheFramesWereShotUnder() async throws {
-        let logger = FrameLogger()
+        let logger = FrameLogger(directory: Self.temporary())
         let url = try await logger.start(.offAxis, camera: .front, sample: Self.pose())
         defer { try? FileManager.default.removeItem(at: url) }
         await logger.record(Self.pose())
@@ -50,7 +50,7 @@ struct FrameLoggerTests {
     }
 
     @Test func theFilenameNamesTheCondition() async throws {
-        let logger = FrameLogger()
+        let logger = FrameLogger(directory: Self.temporary())
         let url = try await logger.start(.pausedBottom, camera: .back, sample: Self.pose())
         defer { try? FileManager.default.removeItem(at: url) }
         await logger.stop()
@@ -60,14 +60,14 @@ struct FrameLoggerTests {
     }
 
     @Test func framesArrivingBeforeAStartAreNotWritten() async {
-        let logger = FrameLogger()
+        let logger = FrameLogger(directory: Self.temporary())
         await logger.record(Self.pose())
         #expect(await logger.isRecording == false)
         #expect(await logger.stop() == nil)
     }
 
     @Test func aSecondStartIsRefusedRatherThanAbandoningTheFirstFile() async throws {
-        let logger = FrameLogger()
+        let logger = FrameLogger(directory: Self.temporary())
         let url = try await logger.start(.tooFar, camera: .back, sample: Self.pose())
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -78,6 +78,11 @@ struct FrameLoggerTests {
     }
 
     // MARK: - Fixtures
+
+    // a directory of its own per test: Documents is shared, and check-then-create is not atomic
+    private static func temporary() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    }
 
     private static func lines(of url: URL) throws -> [String] {
         try String(contentsOf: url, encoding: .utf8)
