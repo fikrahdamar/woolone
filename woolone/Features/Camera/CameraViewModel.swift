@@ -19,7 +19,8 @@ final class CameraViewModel {
         case failed(String)
     }
 
-    let camera: CameraSession
+    /// nil when replaying — a recorded session has no preview layer and must not raise a permission prompt.
+    let camera: CameraSession?
     private(set) var status: Status = .idle
     private(set) var stats = CaptureStats.idle
     private(set) var poseStats = PoseStats.idle
@@ -29,17 +30,37 @@ final class CameraViewModel {
     private(set) var facing: CameraFacing = .back
     private(set) var showsAllJoints = false
     private(set) var recording = RecordingStats.idle
+    private(set) var replay = ReplayProgress.idle
 
     private let source: any PoseSource
     private let logger = FrameLogger()
+    // typed, so transport control needs no cast — and the live path never sees it
+    private let replaySource: ReplaySource?
     private var tasks: [Task<Void, Never>] = []
     private var isSwitchingCamera = false
     private var legSelector = LegSelector()
 
     init(camera: CameraSession = CameraSession()) {
         self.camera = camera
+        replaySource = nil
         source = LiveCameraSource(camera: camera, logger: logger)
     }
+
+    /// The seam, exercised for the first time: everything below this line cannot tell which source it got.
+    init(replaying recording: Recording) throws {
+        camera = nil
+        let replay = try ReplaySource(recording)
+        replaySource = replay
+        source = replay
+    }
+
+    var isReplaying: Bool { replaySource != nil }
+    var replayName: String? { replaySource?.recording.name }
+
+    func play() async { await replaySource?.play() }
+    func pause() async { await replaySource?.pause() }
+    func step(by delta: Int) async { await replaySource?.step(by: delta) }
+    func seek(to index: Int) async { await replaySource?.seek(to: index) }
 
     var statusText: String {
         switch status {
@@ -96,7 +117,7 @@ final class CameraViewModel {
     }
 
     /// The header records the camera once, so a flip mid-recording would transpose half the file silently.
-    var canFlipCamera: Bool { status == .running && !recording.isRecording }
+    var canFlipCamera: Bool { camera != nil && status == .running && !recording.isRecording }
 
     /// Refuses before the first frame: the header needs a real image size and orientation, not a guess.
     func startRecording(_ condition: RecordingCondition) async {
@@ -138,9 +159,11 @@ final class CameraViewModel {
         guard !Self.isRunningInPreview else { return }
 
         status = .starting
-        guard await CameraPermission.request() == .authorized else {
-            status = .denied
-            return
+        if camera != nil {
+            guard await CameraPermission.request() == .authorized else {
+                status = .denied
+                return
+            }
         }
 
         observe()
@@ -182,16 +205,25 @@ final class CameraViewModel {
                 self?.poseStats = value
             }
         })
-        tasks.append(Task { [weak self, camera] in
-            for await value in camera.stats {
-                self?.stats = value
-            }
-        })
-        tasks.append(Task { [weak self, logger] in
-            for await value in logger.stats {
-                self?.recording = value
-            }
-        })
+        if let camera {
+            tasks.append(Task { [weak self, camera] in
+                for await value in camera.stats {
+                    self?.stats = value
+                }
+            })
+            tasks.append(Task { [weak self, logger] in
+                for await value in logger.stats {
+                    self?.recording = value
+                }
+            })
+        }
+        if let replaySource {
+            tasks.append(Task { [weak self, replaySource] in
+                for await value in replaySource.progress {
+                    self?.replay = value
+                }
+            })
+        }
     }
 
     private static var isRunningInPreview: Bool {
