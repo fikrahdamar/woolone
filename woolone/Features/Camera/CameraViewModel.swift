@@ -31,6 +31,7 @@ final class CameraViewModel {
     private(set) var showsAllJoints = false
     private(set) var recording = RecordingStats.idle
     private(set) var replay = ReplayProgress.idle
+    private(set) var setup: SetupGate.State = .waiting(.noPerson)
 
     private let source: any PoseSource
     private let logger = FrameLogger()
@@ -39,6 +40,7 @@ final class CameraViewModel {
     private var tasks: [Task<Void, Never>] = []
     private var isSwitchingCamera = false
     private var legSelector = LegSelector()
+    private var setupGate = SetupGate()
 
     init(camera: CameraSession = CameraSession()) {
         self.camera = camera
@@ -70,6 +72,38 @@ final class CameraViewModel {
         case .denied: "camera access denied — enable it in Settings"
         case .failed(let reason): "failed: \(reason)"
         }
+    }
+
+    var isArmed: Bool { setup == .armed }
+
+    /// A gate that refuses without naming the reason is a bug report, not guidance.
+    var setupText: String {
+        switch setup {
+        case .armed:
+            "ready\(squareSuffix)"
+        case .holding(let remaining):
+            String(format: "hold still %.1fs", max(0, remaining)) + squareSuffix
+        case .waiting(.noPerson):
+            "step into frame"
+        case .waiting(.missingJoints(let names)):
+            "step back — " + names.prefix(3)
+                .map(\.label)
+                .joined(separator: ", ") + " out of frame"
+        case .waiting(.notStanding):
+            "stand up to start"
+        case .waiting(.notSquare(let spread)):
+            String(
+                format: "turn square to the phone — %.2f, needs %.2f",
+                spread,
+                SetupGate.spreadLimit
+            )
+        }
+    }
+
+    // the number is what makes the instruction actionable: without it you cannot tell you are drifting
+    private var squareSuffix: String {
+        guard let spread = pose?.shoulderSpread else { return "" }
+        return String(format: " · square %.2f", spread)
     }
 
     /// A missing angle says so out loud — a stale number sitting there looking live is the dangerous failure.
@@ -195,6 +229,7 @@ final class CameraViewModel {
             for await frame in source.poseFrames {
                 guard let self else { return }
                 pose = frame
+                setup = setupGate.update(frame, at: Self.now())
                 legJoints = legSelector.select(from: frame)
                 // the angle follows the leg the selector settled on, so the line and the number agree
                 kneeAngle = legSelector.side.flatMap { frame.kneeAngle($0) }
@@ -224,6 +259,10 @@ final class CameraViewModel {
                 }
             })
         }
+    }
+
+    private static func now() -> Double {
+        Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000_000
     }
 
     private static var isRunningInPreview: Bool {

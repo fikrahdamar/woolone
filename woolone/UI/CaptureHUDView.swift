@@ -14,6 +14,8 @@ struct CaptureHUDView: View {
     let kneeAngle: String
     let hasReading: Bool
     let weakJoints: String?
+    let setup: String
+    let isArmed: Bool
     let recording: RecordingStats
     let camera: String
     let status: String
@@ -27,6 +29,9 @@ struct CaptureHUDView: View {
                 .font(.system(size: 22, design: .monospaced))
                 .fontWeight(.semibold)
                 .foregroundStyle(hasReading ? Color.primary : Color.orange)
+            // above the rate line and never collapsed: this is the one thing you act on before a set
+            Text(setup)
+                .foregroundStyle(isArmed ? Color.green : Color.orange)
             Text(rateLine)
             // stays visible collapsed: a set recorded to a file nobody knew was open is 20 sets, not 19
             if let recordingLine {
@@ -134,6 +139,8 @@ struct CaptureHUDView: View {
         kneeAngle: "knee 118.4°",
         hasReading: true,
         weakJoints: "left ankle 0.41 · right knee 0.28",
+        setup: "turn square to the phone — 0.28, needs 0.15",
+        isArmed: false,
         recording: RecordingStats(
             isRecording: true,
             condition: "off axis",
