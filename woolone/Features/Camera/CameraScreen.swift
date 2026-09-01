@@ -30,6 +30,8 @@ struct CameraScreen: View {
                 kneeAngle: viewModel.kneeAngleText,
                 hasReading: viewModel.kneeAngle != nil,
                 weakJoints: viewModel.weakJointsText,
+                setup: viewModel.setupText,
+                isArmed: viewModel.isArmed,
                 recording: viewModel.recording,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText
