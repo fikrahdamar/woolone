@@ -25,6 +25,18 @@ nonisolated struct Joint: Sendable, Equatable {
 }
 
 nonisolated extension HumanBodyPoseObservation.JointName {
+    /// The same joint on the other side — how a fault named on one side is measured on the other.
+    // leans on Vision's naming: every sided joint is leftX or rightX, and an unsided one answers itself
+    var mirrored: Self {
+        if rawValue.hasPrefix("left") {
+            return Self(rawValue: "right" + rawValue.dropFirst(4)) ?? self
+        }
+        if rawValue.hasPrefix("right") {
+            return Self(rawValue: "left" + rawValue.dropFirst(5)) ?? self
+        }
+        return self
+    }
+
     // the new Swift enum uses camelCase; the old VN API's "left_knee_joint" is gone, so the
     // underscore stripping this used to do had been a no-op since #5
     var label: String {
