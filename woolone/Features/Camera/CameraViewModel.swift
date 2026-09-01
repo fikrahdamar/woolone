@@ -32,6 +32,9 @@ final class CameraViewModel {
     private(set) var recording = RecordingStats.idle
     private(set) var replay = ReplayProgress.idle
     private(set) var setup: SetupGate.State = .waiting(.noPerson)
+    private(set) var smoothedAngle: CGFloat?
+    private(set) var reps = 0
+    private(set) var lastRep: RepCounter.Rep?
 
     private let source: any PoseSource
     private let logger = FrameLogger()
@@ -41,6 +44,10 @@ final class CameraViewModel {
     private var isSwitchingCamera = false
     private var legSelector = LegSelector()
     private var setupGate = SetupGate()
+    private var angleEMA = EMA()
+    // the rep signal is smoothed too: the hysteresis gap is 0.12 and raw jitter eats into it
+    private var signalEMA = EMA()
+    private var repCounter = RepCounter()
 
     init(camera: CameraSession = CameraSession()) {
         self.camera = camera
@@ -76,6 +83,19 @@ final class CameraViewModel {
 
     var isArmed: Bool { setup == .armed }
 
+    /// Raw and smoothed side by side — smoothing costs depth at the bottom, so the price stays visible.
+    var measurementText: String {
+        var parts: [String] = []
+        if let smoothedAngle {
+            parts.append(String(format: "smooth %.1f°", smoothedAngle))
+        }
+        parts.append("\(reps) rep\(reps == 1 ? "" : "s")")
+        if let lastRep, let lowest = lastRep.lowestAngle {
+            parts.append(String(format: "last %.0f° · %.1fs", lowest, lastRep.seconds))
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// A gate that refuses without naming the reason is a bug report, not guidance.
     var setupText: String {
         switch setup {
@@ -91,18 +111,19 @@ final class CameraViewModel {
                 .joined(separator: ", ") + " out of frame"
         case .waiting(.notStanding):
             "stand up to start"
-        case .waiting(.notSquare(let spread)):
-            String(
-                format: "turn square to the phone — %.2f, needs %.2f",
+        }
+    }
+
+    // counting survives a crooked camera; grading does not, and the user is told which they are getting
+    private var squareSuffix: String {
+        guard let spread = setupGate.spread else { return "" }
+        guard setupGate.isSquare else {
+            return String(
+                format: " · NOT SQUARE %.2f, needs %.2f — counting only",
                 spread,
                 SetupGate.spreadLimit
             )
         }
-    }
-
-    // the number is what makes the instruction actionable: without it you cannot tell you are drifting
-    private var squareSuffix: String {
-        guard let spread = pose?.shoulderSpread else { return "" }
         return String(format: " · square %.2f", spread)
     }
 
@@ -228,11 +249,25 @@ final class CameraViewModel {
         tasks.append(Task { [weak self, source] in
             for await frame in source.poseFrames {
                 guard let self else { return }
+                let now = Self.now()
+                let wasArmed = setup == .armed
                 pose = frame
-                setup = setupGate.update(frame, at: Self.now())
+                setup = setupGate.update(frame, at: now)
                 legJoints = legSelector.select(from: frame)
                 // the angle follows the leg the selector settled on, so the line and the number agree
                 kneeAngle = legSelector.side.flatMap { frame.kneeAngle($0) }
+                smoothedAngle = angleEMA.update(kneeAngle)
+
+                let signal = signalEMA.update(frame.repSignal)
+                if setup == .armed {
+                    // the hold's own median, not the last frame — one jittery sample shifts every rep after it
+                    if !wasArmed, let baseline = setupGate.baseline {
+                        repCounter.arm(baseline: baseline)
+                    }
+                    repCounter.update(signal: signal, angle: smoothedAngle, at: now)
+                    reps = repCounter.count
+                    lastRep = repCounter.lastRep
+                }
             }
         })
         tasks.append(Task { [weak self, source] in

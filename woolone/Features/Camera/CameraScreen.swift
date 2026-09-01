@@ -32,6 +32,7 @@ struct CameraScreen: View {
                 weakJoints: viewModel.weakJointsText,
                 setup: viewModel.setupText,
                 isArmed: viewModel.isArmed,
+                measurement: viewModel.measurementText,
                 recording: viewModel.recording,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText
