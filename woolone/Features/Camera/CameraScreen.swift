@@ -9,11 +9,14 @@ import SwiftUI
 
 struct CameraScreen: View {
     @State private var viewModel = CameraViewModel()
+    @State private var showsReplay = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            CameraPreviewView(camera: viewModel.camera)
-                .ignoresSafeArea()
+            if let camera = viewModel.camera {
+                CameraPreviewView(camera: camera)
+                    .ignoresSafeArea()
+            }
             PoseOverlayView(
                 joints: viewModel.overlayJoints,
                 chains: viewModel.overlayChains,
@@ -57,12 +60,15 @@ struct CameraScreen: View {
                 Button(viewModel.showsAllJoints ? "leg" : "all") {
                     viewModel.toggleAllJoints()
                 }
+                // reachable even when the camera failed, which is the only state the simulator has
+                Button("replay") { showsReplay = true }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .padding()
         }
         .task { await viewModel.start() }
+        .fullScreenCover(isPresented: $showsReplay) { ReplayScreen() }
     }
 }
 
