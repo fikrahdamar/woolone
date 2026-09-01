@@ -41,6 +41,8 @@ struct ReplayScreen: View {
                 kneeAngle: model.kneeAngleText,
                 hasReading: model.kneeAngle != nil,
                 weakJoints: model.weakJointsText,
+                setup: model.setupText,
+                isArmed: model.isArmed,
                 recording: .idle,
                 // the recording names itself, which is the criterion's weaker half
                 camera: "replay · \(model.replayName ?? "unnamed")",
