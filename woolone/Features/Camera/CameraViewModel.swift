@@ -148,8 +148,10 @@ final class CameraViewModel {
 
     /// A missing angle says so out loud — a stale number sitting there looking live is the dangerous failure.
     var kneeAngleText: String {
-        guard let kneeAngle else { return "knee — no reading" }
-        return String(format: "knee %.1f°", kneeAngle)
+        // the rep count rides on the big line: it is unreadable anywhere smaller from a phone stand
+        let tail = isArmed ? String(format: "  ·  %d rep%@", reps, reps == 1 ? "" : "s") : ""
+        guard let kneeAngle else { return "knee — no reading\(tail)" }
+        return String(format: "knee %.1f°", kneeAngle) + tail
     }
 
     /// Names the joints that fell below the draw gate — a colour says which band, not which joint.
