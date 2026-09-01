@@ -31,7 +31,8 @@ struct ReplayScreen: View {
             PoseOverlayView(
                 joints: model.overlayJoints,
                 chains: model.overlayChains,
-                imageSize: model.pose?.imageSize ?? .zero
+                imageSize: model.pose?.imageSize ?? .zero,
+                isFaulted: model.isFaulted
             )
             .ignoresSafeArea()
             CaptureHUDView(
@@ -44,6 +45,8 @@ struct ReplayScreen: View {
                 setup: model.setupText,
                 isArmed: model.isArmed,
                 measurement: model.measurementText,
+                verdict: model.verdictText,
+                verdictPassed: model.verdictPassed,
                 recording: .idle,
                 // the recording names itself, which is the criterion's weaker half
                 camera: "replay · \(model.replayName ?? "unnamed")",

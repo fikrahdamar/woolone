@@ -17,11 +17,13 @@ struct RepCounterRecordingTests {
     }
 
     @Test func aCleanSideSetCountsItsReps() async throws {
-        #expect(try await Self.count(in: "clean-side") == 4)
+        let count = try await Self.count(in: "clean-side")
+        #expect(count == 4)
     }
 
     @Test func aPausedBottomSetCountsItsReps() async throws {
-        #expect(try await Self.count(in: "paused-bottom") == 4)
+        let count = try await Self.count(in: "paused-bottom")
+        #expect(count == 4)
     }
 
     /// The rule the whole project rests on: a bad camera angle counts honestly and refuses to grade.
@@ -35,7 +37,24 @@ struct RepCounterRecordingTests {
     }
 
     @Test func aCleanSideSetIsGradeable() async throws {
-        #expect(try await Self.run(condition: "clean-side").isSquare)
+        let isSquare = try await Self.run(condition: "clean-side").isSquare
+        #expect(isSquare)
+    }
+
+    /// #21's criterion: verified against the deliberately bad recording, not against a fixture.
+    @Test func theDeliberatelyShallowSetIsJudgedShallow() async throws {
+        let verdicts = try await Self.run(condition: "bad-set").verdicts
+        let limit = ExerciseDefinition.squat.faults[0].validRange.upperBound
+        let allFailed = verdicts.allSatisfy { !$0.passed && $0.measured > limit }
+        #expect(!verdicts.isEmpty)
+        #expect(allFailed)
+    }
+
+    @Test func aCleanSideSetIsJudgedGood() async throws {
+        let verdicts = try await Self.run(condition: "clean-side").verdicts
+        let allPassed = verdicts.allSatisfy(\.passed)
+        #expect(!verdicts.isEmpty)
+        #expect(allPassed)
     }
 
     // MARK: - Fixtures
@@ -45,7 +64,9 @@ struct RepCounterRecordingTests {
     }
 
     // the same chain the ViewModel runs, minus the camera: gate → signal → EMA → counter
-    private static func run(condition: String) async throws -> (count: Int, isSquare: Bool) {
+    private static func run(
+        condition: String
+    ) async throws -> (count: Int, isSquare: Bool, verdicts: [FormJudge.Judgement]) {
         let recording = try #require(Recording.bundled().first { $0.header.condition == condition })
         let source = try ReplaySource(recording)
 
@@ -54,6 +75,8 @@ struct RepCounterRecordingTests {
         var selector = LegSelector()
         var gate = SetupGate()
         var counter = RepCounter()
+        let judge = FormJudge(definition: .squat)
+        var verdicts: [FormJudge.Judgement] = []
         var wasArmed = false
 
         for index in 0..<source.frameCount {
@@ -70,10 +93,13 @@ struct RepCounterRecordingTests {
                 if !wasArmed, let baseline = gate.baseline {
                     counter.arm(baseline: baseline)
                 }
-                counter.update(signal: signal, angle: angle, at: now)
+                if let rep = counter.update(signal: signal, angle: angle, at: now),
+                   let verdict = judge.judge(rep, isSquare: gate.isSquare) {
+                    verdicts.append(verdict)
+                }
             }
             wasArmed = state == .armed
         }
-        return (counter.count, gate.isSquare)
+        return (counter.count, gate.isSquare, verdicts)
     }
 }

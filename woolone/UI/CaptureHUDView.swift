@@ -17,6 +17,8 @@ struct CaptureHUDView: View {
     let setup: String
     let isArmed: Bool
     let measurement: String
+    let verdict: String?
+    let verdictPassed: Bool
     let recording: RecordingStats
     let camera: String
     let status: String
@@ -33,6 +35,13 @@ struct CaptureHUDView: View {
             // above the rate line and never collapsed: this is the one thing you act on before a set
             Text(setup)
                 .foregroundStyle(isArmed ? Color.green : Color.orange)
+            // the product's actual output: what the last rep measured and what it needed
+            if let verdict {
+                Text(verdict)
+                    .font(.system(size: 15, design: .monospaced))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(verdictPassed ? Color.green : Color.red)
+            }
             // raw is the big number above; this is what smoothing and counting made of it
             Text(measurement)
             Text(rateLine)
@@ -145,6 +154,8 @@ struct CaptureHUDView: View {
         setup: "turn square to the phone — 0.28, needs 0.15",
         isArmed: false,
         measurement: "smooth 116.9° · 3 reps · last 84° · 2.1s",
+        verdict: "depth 118° · needs under 92° — go deeper",
+        verdictPassed: false,
         recording: RecordingStats(
             isRecording: true,
             condition: "off axis",

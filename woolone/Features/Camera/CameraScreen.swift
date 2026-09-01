@@ -20,7 +20,8 @@ struct CameraScreen: View {
             PoseOverlayView(
                 joints: viewModel.overlayJoints,
                 chains: viewModel.overlayChains,
-                imageSize: viewModel.pose?.imageSize ?? .zero
+                imageSize: viewModel.pose?.imageSize ?? .zero,
+                isFaulted: viewModel.isFaulted
             )
                 .ignoresSafeArea()
             CaptureHUDView(
@@ -33,6 +34,8 @@ struct CameraScreen: View {
                 setup: viewModel.setupText,
                 isArmed: viewModel.isArmed,
                 measurement: viewModel.measurementText,
+                verdict: viewModel.verdictText,
+                verdictPassed: viewModel.verdictPassed,
                 recording: viewModel.recording,
                 camera: viewModel.cameraText,
                 status: viewModel.statusText

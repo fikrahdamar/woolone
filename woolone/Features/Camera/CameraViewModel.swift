@@ -35,6 +35,7 @@ final class CameraViewModel {
     private(set) var smoothedAngle: CGFloat?
     private(set) var reps = 0
     private(set) var lastRep: RepCounter.Rep?
+    private(set) var judgement: FormJudge.Judgement?
 
     private let source: any PoseSource
     private let logger = FrameLogger()
@@ -44,6 +45,7 @@ final class CameraViewModel {
     private var isSwitchingCamera = false
     private var legSelector = LegSelector()
     private var setupGate = SetupGate()
+    private let exercise = ExerciseDefinition.squat
     private var angleEMA = EMA()
     // the rep signal is smoothed too: the hysteresis gap is 0.12 and raw jitter eats into it
     private var signalEMA = EMA()
@@ -82,6 +84,23 @@ final class CameraViewModel {
     }
 
     var isArmed: Bool { setup == .armed }
+
+    /// Red while the measurement sits outside the fault's range — colour reads across a room, a number does not.
+    var isFaulted: Bool {
+        guard isArmed, setupGate.isSquare,
+              let angle = smoothedAngle,
+              let fault = exercise.faults.first else { return false }
+        return !fault.validRange.contains(angle)
+    }
+
+    /// The cue names the measurement and the range it needed, never a verdict on the person.
+    var verdictText: String? {
+        if let judgement { return judgement.text }
+        guard isArmed, !setupGate.isSquare else { return nil }
+        return "not square — reps counted, form not graded"
+    }
+
+    var verdictPassed: Bool { judgement?.passed ?? false }
 
     /// Raw and smoothed side by side — smoothing costs depth at the bottom, so the price stays visible.
     var measurementText: String {
@@ -255,7 +274,10 @@ final class CameraViewModel {
                 setup = setupGate.update(frame, at: now)
                 legJoints = legSelector.select(from: frame)
                 // the angle follows the leg the selector settled on, so the line and the number agree
-                kneeAngle = legSelector.side.flatMap { frame.kneeAngle($0) }
+                // the exercise names its own triple; nothing here knows it is a knee
+                kneeAngle = legSelector.side.flatMap { side in
+                    exercise.faults.first.flatMap { frame.measuredAngle(of: $0.joints, on: side) }
+                }
                 smoothedAngle = angleEMA.update(kneeAngle)
 
                 let signal = signalEMA.update(frame.repSignal)
@@ -264,7 +286,11 @@ final class CameraViewModel {
                     if !wasArmed, let baseline = setupGate.baseline {
                         repCounter.arm(baseline: baseline)
                     }
-                    repCounter.update(signal: signal, angle: smoothedAngle, at: now)
+                    // judged at the bottom of the rep: the top carries no information
+                    if let rep = repCounter.update(signal: signal, angle: smoothedAngle, at: now) {
+                        judgement = FormJudge(definition: exercise)
+                            .judge(rep, isSquare: setupGate.isSquare)
+                    }
                     reps = repCounter.count
                     lastRep = repCounter.lastRep
                 }
