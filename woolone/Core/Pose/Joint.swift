@@ -21,10 +21,16 @@ nonisolated struct Joint: Sendable, Equatable {
     /// One of the six the knee angle can be built from — a weak one of these costs the reading.
     var measuresKneeAngle: Bool { Self.kneeAngleNames.contains(name) }
 
-    // Vision decorates its raw names; the HUD has one line to spare, not three
+    var label: String { name.label }
+}
+
+nonisolated extension HumanBodyPoseObservation.JointName {
+    // the new Swift enum uses camelCase; the old VN API's "left_knee_joint" is gone, so the
+    // underscore stripping this used to do had been a no-op since #5
     var label: String {
-        name.rawValue
-            .replacingOccurrences(of: "_joint", with: "")
-            .replacingOccurrences(of: "_", with: " ")
+        rawValue.reduce(into: "") { text, character in
+            if character.isUppercase, !text.isEmpty { text.append(" ") }
+            text.append(contentsOf: character.lowercased())
+        }
     }
 }
