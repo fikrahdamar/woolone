@@ -29,16 +29,34 @@ struct SetupGateTests {
         #expect(missing.contains(.neck))
     }
 
-    /// The whole point: a body turned away from the sagittal plane must not be judged.
-    @Test func aCrookedBodyNeverArmsAndSaysWhatItMeasured() {
+    /// Counting and grading are gated differently: a crooked camera still starts a set, it just
+    /// cannot be trusted with an angle. Blocking the arm here would destroy the one signal that survives.
+    @Test func aCrookedBodyStillArmsButIsNotSquare() {
+        var gate = SetupGate()
         let frame = Self.frame(Self.body(spread: 0.30, knee: 175))
-        let state = Self.run(frame, seconds: 0...5)
+        _ = gate.update(frame, at: 0)
+        #expect(gate.update(frame, at: 3.0) == .armed)
+        #expect(gate.isSquare == false)
+    }
 
-        guard case .waiting(.notSquare(let measured)) = state else {
-            Issue.record("expected notSquare, got \(state)")
-            return
-        }
-        #expect(measured > SetupGate.spreadLimit)
+    @Test func aSquareBodyArmsAndIsGradeable() {
+        var gate = SetupGate()
+        let frame = Self.frame(Self.body(spread: 0.10, knee: 175))
+        _ = gate.update(frame, at: 0)
+        #expect(gate.update(frame, at: 3.0) == .armed)
+        #expect(gate.isSquare)
+    }
+
+    /// The counter measures every descent against this, so one jittery sample would shift every rep.
+    @Test func theHoldProducesABaselineFromTheWholeWindow() throws {
+        var gate = SetupGate()
+        let frame = Self.frame(Self.body(spread: 0.10, knee: 175))
+        for index in 0..<90 { _ = gate.update(frame, at: Double(index) / 30) }
+        _ = gate.update(frame, at: 3.0)
+
+        let baseline = try #require(gate.baseline)
+        let expected = try #require(frame.repSignal)
+        #expect(abs(baseline - expected) < 0.001)
     }
 
     @Test func squattingIsNotAStartPosition() {
@@ -63,36 +81,26 @@ struct SetupGateTests {
         #expect(gate.update(frame, at: 3.0) == .armed)
     }
 
-    /// One jittery frame must not restart a countdown that is nearly done.
-    @Test func aSingleBadFrameDoesNotRestartTheHold() {
+    /// One jittery frame must not flip the verdict on a body that has been square all along.
+    @Test func aSingleBadFrameDoesNotUnsquareIt() {
         let good = Self.frame(Self.body(spread: 0.10, knee: 175))
         let blip = Self.frame(Self.body(spread: 0.40, knee: 175))
         var gate = SetupGate()
 
-        for index in 0..<20 {
-            _ = gate.update(good, at: Double(index) / 30)
-        }
+        for index in 0..<20 { _ = gate.update(good, at: Double(index) / 30) }
         _ = gate.update(blip, at: 20 / 30)
-        guard case .holding = gate.state else {
-            Issue.record("one blip ended the hold: \(gate.state)")
-            return
-        }
-        #expect(gate.update(good, at: 3.0) == .armed)
+        #expect(gate.isSquare)
     }
 
     /// Sustained crookedness is a fault, not jitter — the window has to notice eventually.
-    @Test func sustainedCrookednessEndsTheHold() {
+    @Test func sustainedCrookednessIsNoticed() {
         let good = Self.frame(Self.body(spread: 0.10, knee: 175))
         let crooked = Self.frame(Self.body(spread: 0.40, knee: 175))
         var gate = SetupGate()
 
         for index in 0..<20 { _ = gate.update(good, at: Double(index) / 30) }
         for index in 20..<45 { _ = gate.update(crooked, at: Double(index) / 30) }
-
-        guard case .waiting(.notSquare) = gate.state else {
-            Issue.record("expected notSquare, got \(gate.state)")
-            return
-        }
+        #expect(gate.isSquare == false)
     }
 
     /// Walking out of frame mid-set has to disarm, not keep grading an empty room.
