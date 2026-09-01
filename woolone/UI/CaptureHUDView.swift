@@ -16,6 +16,7 @@ struct CaptureHUDView: View {
     let weakJoints: String?
     let setup: String
     let isArmed: Bool
+    let measurement: String
     let recording: RecordingStats
     let camera: String
     let status: String
@@ -32,6 +33,8 @@ struct CaptureHUDView: View {
             // above the rate line and never collapsed: this is the one thing you act on before a set
             Text(setup)
                 .foregroundStyle(isArmed ? Color.green : Color.orange)
+            // raw is the big number above; this is what smoothing and counting made of it
+            Text(measurement)
             Text(rateLine)
             // stays visible collapsed: a set recorded to a file nobody knew was open is 20 sets, not 19
             if let recordingLine {
@@ -141,6 +144,7 @@ struct CaptureHUDView: View {
         weakJoints: "left ankle 0.41 · right knee 0.28",
         setup: "turn square to the phone — 0.28, needs 0.15",
         isArmed: false,
+        measurement: "smooth 116.9° · 3 reps · last 84° · 2.1s",
         recording: RecordingStats(
             isRecording: true,
             condition: "off axis",
