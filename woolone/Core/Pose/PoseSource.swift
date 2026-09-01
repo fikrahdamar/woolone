@@ -16,7 +16,9 @@ nonisolated protocol PoseSource: Sendable {
     func use(_ facing: CameraFacing) async throws
 }
 
-extension PoseSource {
-    // a recorded session has no camera to flip
+nonisolated extension PoseSource {
+    // a recorded session has no camera to flip.
+    // nonisolated is load-bearing: without it this default is inferred @MainActor under this
+    // target's settings, and ReplaySource is the first type that would have hit it
     func use(_ facing: CameraFacing) async throws {}
 }
