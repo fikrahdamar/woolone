@@ -109,6 +109,11 @@ final class CameraViewModel {
             parts.append(String(format: "smooth %.1f°", smoothedAngle))
         }
         parts.append("\(reps) rep\(reps == 1 ? "" : "s")")
+        // a set with gaps had joints leave the frame, and its depths read too deep — feet cut off
+        // by the bottom edge misplace the ankle, which bends the angle the wrong way
+        if setupGate.lossesSinceArming > 0 {
+            parts.append("\(setupGate.lossesSinceArming) GAPS — check feet in frame")
+        }
         if let lastRep, let lowest = lastRep.lowestAngle {
             parts.append(String(format: "last %.0f° · %.1fs", lowest, lastRep.seconds))
         }
