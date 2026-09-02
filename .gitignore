@@ -51,5 +51,7 @@ fastlane/test_output/
 *.swp
 *.lock
 
-djosn_test/
+# recordings are large and regenerable; the hand labels that validate them are neither
+djosn_test/*
+!djosn_test/labels.md
 
