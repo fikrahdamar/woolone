@@ -104,26 +104,73 @@ struct SetupGateTests {
     }
 
     /// Walking out of frame mid-set has to disarm, not keep grading an empty room.
-    @Test func losingAJointMidSetDisarms() {
-        let frame = Self.frame(Self.body(spread: 0.10, knee: 175))
-        var gate = SetupGate()
-        _ = gate.update(frame, at: 0)
-        #expect(gate.update(frame, at: 3.0) == .armed)
-
-        #expect(gate.update(.empty, at: 3.5) == .waiting(.noPerson))
+    @Test func losingAJointForLongEnoughDisarms() {
+        var gate = Self.armedGate()
+        for index in 0..<SetupGate.windowFrames {
+            _ = gate.update(.empty, at: 3.0 + Double(index) / 30)
+        }
+        #expect(gate.state == .waiting(.noPerson))
     }
 
-    /// Bending is what a squat is. Judging must survive the shoulders opening up as the torso leans.
-    @Test func armedSurvivesTheBendThatFollowsIt() {
-        var gate = SetupGate()
-        _ = gate.update(Self.frame(Self.body(spread: 0.10, knee: 175)), at: 0)
-        #expect(gate.update(Self.frame(Self.body(spread: 0.10, knee: 175)), at: 3.0) == .armed)
+    /// A knee or ankle blurs below the gate for a frame or two on every fast rep. Ending the set
+    /// there cost 9 of 10 reps in clean-side-20260902-143050 — 17 dropouts, none longer than 0.4s.
+    @Test func aBriefDropoutDoesNotEndTheSet() {
+        var gate = Self.armedGate()
+        let square = Self.frame(Self.body(spread: 0.10, knee: 175))
 
-        let bent = Self.frame(Self.body(spread: 0.28, knee: 92))
-        #expect(gate.update(bent, at: 4.0) == .armed)
+        for burst in 0..<4 {
+            for index in 0..<6 { _ = gate.update(.empty, at: 4.0 + Double(burst) + Double(index) / 30) }
+            for index in 0..<15 { _ = gate.update(square, at: 4.3 + Double(burst) + Double(index) / 30) }
+            #expect(gate.state == .armed, "dropout \(burst + 1) ended the set")
+        }
+        #expect(gate.lossesSinceArming == 4, "the gaps are survived, but they are counted")
+    }
+
+    /// Bending is what a squat is. The shoulders open as the torso leans, and that is not a fault.
+    @Test func armedSurvivesTheBendThatFollowsIt() {
+        var gate = Self.armedGate()
+
+        let bent = Self.frame(Self.body(spread: 0.40, knee: 92))
+        for index in 0..<30 { _ = gate.update(bent, at: 3.0 + Double(index) / 30) }
+
+        #expect(gate.state == .armed)
+        #expect(gate.isSquare, "bending must not be read as turning away")
+    }
+
+    /// Turning away mid-set is a real fault. Freezing the verdict at arming hid it for a whole set.
+    @Test func turningAwayMidSetStopsGradingButKeepsCounting() {
+        var gate = Self.armedGate()
+
+        let turned = Self.frame(Self.body(spread: 0.40, knee: 175))
+        for index in 0..<30 { _ = gate.update(turned, at: 3.0 + Double(index) / 30) }
+
+        #expect(gate.state == .armed, "the set carries on — counting survives a bad angle")
+        #expect(gate.isSquare == false, "but it may no longer be graded")
+    }
+
+    /// And squaring up again earns grading back, without restarting the set.
+    @Test func squaringUpAgainResumesGrading() {
+        var gate = Self.armedGate()
+
+        let turned = Self.frame(Self.body(spread: 0.40, knee: 175))
+        for index in 0..<30 { _ = gate.update(turned, at: 3.0 + Double(index) / 30) }
+        #expect(gate.isSquare == false)
+
+        let square = Self.frame(Self.body(spread: 0.10, knee: 175))
+        for index in 0..<30 { _ = gate.update(square, at: 4.0 + Double(index) / 30) }
+        #expect(gate.isSquare)
+        #expect(gate.state == .armed)
     }
 
     // MARK: - Fixtures
+
+    private static func armedGate() -> SetupGate {
+        var gate = SetupGate()
+        let square = frame(body(spread: 0.10, knee: 175))
+        for index in 0..<90 { _ = gate.update(square, at: Double(index) / 30) }
+        _ = gate.update(square, at: 3.0)
+        return gate
+    }
 
     private static func run(_ frame: PoseFrame, seconds: ClosedRange<Double>) -> SetupGate.State {
         var gate = SetupGate()
