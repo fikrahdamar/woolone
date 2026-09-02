@@ -42,13 +42,14 @@ nonisolated struct ExerciseDefinition: Sendable, Equatable {
         plane: .sagittal,
         cameraView: .side,
         faults: [
-            // 92° is the midpoint of a gap with nothing in it: 16 clean reps bottomed at 61–86°,
-            // 11 deliberately shallow ones at 99–136°. Only valid while the framing gate holds —
-            // at 0.25 spread the same clean reps read 82–93° and would fail this.
+            // 96° is the midpoint of a gap with nothing in it. Replaying every recording that was
+            // square at arming: 24 clean reps bottomed at 62–91°, 6 deliberately shallow ones at
+            // 102–111°. Only valid while the framing gate holds — at 0.25 spread the same clean
+            // reps read 82–93° and several would fail this. See c4/thresholds.md.
             Fault(
                 name: "depth",
                 joints: [.leftHip, .leftKnee, .leftAnkle],
-                validRange: 0...92,
+                validRange: 0...96,
                 cue: "go deeper"
             )
         ],
