@@ -46,34 +46,44 @@ nonisolated struct SetupGate {
     private(set) var spread: CGFloat?
     /// The rep signal while standing still — the counter measures every descent against this.
     private(set) var baseline: CGFloat?
+    /// Dropouts survived since the set began. Above zero means the recording has gaps in it.
+    private(set) var lossesSinceArming = 0
 
     private var holdStarted: Double?
     private var spreads: [CGFloat] = []
     private var signals: [CGFloat] = []
+    private var missingFrames = 0
 
     @discardableResult
     mutating func update(_ frame: PoseFrame, at now: Double) -> State {
         spread = frame.shoulderSpread
 
-        guard frame.hasPerson else { return fail(.noPerson) }
-        let missing = Self.required.filter { (frame.joints[$0]?.confidence ?? 0) < PoseConfidence.judge }
-        guard missing.isEmpty else { return fail(.missingJoints(missing)) }
-        guard frame.leg(.left, above: PoseConfidence.judge).count == 3
-                || frame.leg(.right, above: PoseConfidence.judge).count == 3 else {
-            return fail(.missingJoints([.leftAnkle, .rightAnkle]))
+        if let reason = Self.loss(in: frame) {
+            missingFrames += 1
+            if missingFrames == 1, state == .armed { lossesSinceArming += 1 }
+            // a knee or ankle blurs below the gate for a frame or two on every fast rep — measured
+            // at 17 dropouts in one set, none longer than 0.4s. Disarming on the first of them ended
+            // the set, and re-arming needs three still seconds that never come mid-set
+            if state == .armed, missingFrames < Self.windowFrames { return state }
+            return fail(reason)
+        }
+        missingFrames = 0
+
+        let isStanding = (frame.straightestKnee ?? 0) >= Self.standingKnee
+
+        // framing is judged only while standing, before the set and at the top of every rep.
+        // bending opens the shoulders too, so measuring mid-rep would read movement as a fault —
+        // but turning away mid-set is a real fault, and freezing the verdict at arming hid it
+        if isStanding, let spread {
+            spreads.append(spread)
+            if spreads.count > Self.windowFrames { spreads.removeFirst() }
+            isSquare = Self.median(spreads).map { $0 <= Self.spreadLimit } ?? false
         }
 
-        // once armed, only losing a joint disarms — the shoulders necessarily open as the torso bends,
-        // which is movement rather than a fault, and a live check would end the set during rep one
+        // a set that has started keeps counting: only a lost joint ends it
         if state == .armed { return state }
 
-        guard let knee = frame.straightestKnee, knee >= Self.standingKnee else {
-            return fail(.notStanding)
-        }
-
-        if let spread { spreads.append(spread) }
-        if spreads.count > Self.windowFrames { spreads.removeFirst() }
-        isSquare = Self.median(spreads).map { $0 <= Self.spreadLimit } ?? false
+        guard isStanding else { return fail(.notStanding) }
 
         if let signal = frame.repSignal { signals.append(signal) }
 
@@ -95,8 +105,21 @@ nonisolated struct SetupGate {
         isSquare = false
         holdStarted = nil
         baseline = nil
+        missingFrames = 0
+        lossesSinceArming = 0
         spreads.removeAll()
         signals.removeAll()
+    }
+
+    private static func loss(in frame: PoseFrame) -> Reason? {
+        guard frame.hasPerson else { return .noPerson }
+        let missing = required.filter { (frame.joints[$0]?.confidence ?? 0) < PoseConfidence.judge }
+        guard missing.isEmpty else { return .missingJoints(missing) }
+        guard frame.leg(.left, above: PoseConfidence.judge).count == 3
+                || frame.leg(.right, above: PoseConfidence.judge).count == 3 else {
+            return .missingJoints([.leftAnkle, .rightAnkle])
+        }
+        return nil
     }
 
     private mutating func fail(_ reason: Reason) -> State {
