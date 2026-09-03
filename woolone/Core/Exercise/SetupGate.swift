@@ -43,6 +43,8 @@ nonisolated struct SetupGate {
     private(set) var state: State = .waiting(.noPerson)
     /// Square enough for the knee angle to mean what it says. Grading reads this; counting does not.
     private(set) var isSquare = false
+    /// The median the verdict was made on, not the current frame — showing the frame reads as a lie
+    /// when the two disagree, and they disagree exactly when the body is moving.
     private(set) var spread: CGFloat?
     /// The rep signal while standing still — the counter measures every descent against this.
     private(set) var baseline: CGFloat?
@@ -56,8 +58,6 @@ nonisolated struct SetupGate {
 
     @discardableResult
     mutating func update(_ frame: PoseFrame, at now: Double) -> State {
-        spread = frame.shoulderSpread
-
         if let reason = Self.loss(in: frame) {
             missingFrames += 1
             if missingFrames == 1, state == .armed { lossesSinceArming += 1 }
@@ -74,10 +74,11 @@ nonisolated struct SetupGate {
         // framing is judged only while standing, before the set and at the top of every rep.
         // bending opens the shoulders too, so measuring mid-rep would read movement as a fault —
         // but turning away mid-set is a real fault, and freezing the verdict at arming hid it
-        if isStanding, let spread {
-            spreads.append(spread)
+        if isStanding, let measured = frame.shoulderSpread {
+            spreads.append(measured)
             if spreads.count > Self.windowFrames { spreads.removeFirst() }
-            isSquare = Self.median(spreads).map { $0 <= Self.spreadLimit } ?? false
+            spread = Self.median(spreads)
+            isSquare = spread.map { $0 <= Self.spreadLimit } ?? false
         }
 
         // a set that has started keeps counting: only a lost joint ends it
