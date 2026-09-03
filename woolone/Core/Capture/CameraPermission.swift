@@ -12,7 +12,7 @@ nonisolated enum CameraPermission {
         case authorized
         case denied
         case restricted
-    }
+    } 
 
     static func request() async -> Status {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
