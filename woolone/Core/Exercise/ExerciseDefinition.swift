@@ -42,14 +42,21 @@ nonisolated struct ExerciseDefinition: Sendable, Equatable {
         plane: .sagittal,
         cameraView: .side,
         faults: [
-            // 96° is the midpoint of a gap with nothing in it. Replaying every recording that was
-            // square at arming: 24 clean reps bottomed at 62–91°, 6 deliberately shallow ones at
-            // 102–111°. Only valid while the framing gate holds — at 0.25 spread the same clean
-            // reps read 82–93° and several would fail this. See c4/thresholds.md.
+            // 86° is the midpoint of a gap with nothing in it. Every recording whose framing median
+            // across the set was ≤0.15: 72 clean reps bottomed at 42–80°, 17 deliberately shallow
+            // ones at 92–115°. Twelve degrees empty between them, and 86 sits 6° from each edge.
+            //
+            // This replaced 96, which came from a narrower slice — filtered on framing at the moment
+            // the gate armed, which in pre-gate recordings often lands mid-walk. 96 let 3 of the 17
+            // shallow reps pass. Converted to the flexion convention the literature uses, the empty
+            // gap is 89–99°, which is where "parallel" is usually put.
+            //
+            // Only valid while the framing gate holds — at 0.25 spread the same clean reps read
+            // 82–93°. See c4/thresholds.md.
             Fault(
                 name: "depth",
                 joints: [.leftHip, .leftKnee, .leftAnkle],
-                validRange: 0...96,
+                validRange: 0...86,
                 cue: "go deeper"
             )
         ],
