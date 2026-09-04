@@ -35,32 +35,32 @@ struct ReplayScreen: View {
                 isFaulted: model.isFaulted
             )
             .ignoresSafeArea()
-            CaptureHUDView(
-                stats: .idle,
-                poseStats: model.poseStats,
-                pose: model.pose,
-                kneeAngle: model.kneeAngleText,
-                hasReading: model.kneeAngle != nil,
-                weakJoints: model.weakJointsText,
-                setup: model.setupText,
-                isArmed: model.isArmed,
-                measurement: model.measurementText,
-                verdict: model.verdictText,
-                verdictPassed: model.verdictPassed,
-                recording: .idle,
-                // the recording names itself, which is the criterion's weaker half
-                camera: "replay · \(model.replayName ?? "unnamed")",
-                status: model.replay.isPlaying ? "playing" : "paused"
-            )
-            .padding()
-        }
-        .overlay(alignment: .topTrailing) {
-            VStack(alignment: .trailing, spacing: 8) {
-                Button("close") { close() }
-                Button(model.showsAllJoints ? "leg" : "all") { model.toggleAllJoints() }
+            // same row as the camera screen: the layout keeps the panel clear of the buttons
+            HStack(alignment: .top, spacing: 12) {
+                CaptureHUDView(
+                    headline: model.headline,
+                    summary: model.summaryText,
+                    isRecording: false,
+                    stats: .idle,
+                    poseStats: model.poseStats,
+                    pose: model.pose,
+                    weakJoints: model.weakJointsText,
+                    measurement: model.measurementText,
+                    recording: .idle,
+                    // the recording names itself, which is the criterion's weaker half
+                    camera: "replay · \(model.replayName ?? "unnamed")",
+                    status: model.replay.isPlaying ? "playing" : "paused"
+                )
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 6) {
+                    Button("close") { close() }
+                    Button(model.showsAllJoints ? "leg" : "all") { model.toggleAllJoints() }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .tint(.secondary)
+                .fixedSize()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
             .padding()
         }
         .safeAreaInset(edge: .bottom) { transport(model) }

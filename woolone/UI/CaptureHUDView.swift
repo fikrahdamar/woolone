@@ -7,78 +7,86 @@
 
 import SwiftUI
 
+/// Two lines you can read from a phone stand, and everything else behind a tap.
 struct CaptureHUDView: View {
+    let headline: CameraViewModel.Headline
+    let summary: String
+    let isRecording: Bool
+
     let stats: CaptureStats
     let poseStats: PoseStats
     let pose: PoseFrame?
-    let kneeAngle: String
-    let hasReading: Bool
     let weakJoints: String?
-    let setup: String
-    let isArmed: Bool
     let measurement: String
-    let verdict: String?
-    let verdictPassed: Bool
     let recording: RecordingStats
     let camera: String
     let status: String
 
-    // small enough to film past; tap collapses it to one line
-    @State private var isExpanded = true
+    // collapsed by default: the diagnostics are for standing at the phone, not for squatting
+    @State private var showsDiagnostics = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(kneeAngle)
-                .font(.system(size: 22, design: .monospaced))
-                .fontWeight(.semibold)
-                .foregroundStyle(hasReading ? Color.primary : Color.orange)
-            // large on purpose: this is read from three metres away, not from arm's length
-            Text(setup)
-                .font(.system(size: 20, design: .monospaced))
-                .fontWeight(.semibold)
-                .foregroundStyle(isArmed ? Color.green : Color.orange)
-            // the product's actual output: what the last rep measured and what it needed
-            if let verdict {
-                Text(verdict)
-                    .font(.system(size: 20, design: .monospaced))
-                    .fontWeight(.bold)
-                    .foregroundStyle(verdictPassed ? Color.green : Color.red)
-            }
-            // raw is the big number above; this is what smoothing and counting made of it
-            Text(measurement)
-            Text(rateLine)
-            // stays visible collapsed: a set recorded to a file nobody knew was open is 20 sets, not 19
-            if let recordingLine {
-                Text(recordingLine)
-                    .foregroundStyle(recordingColour)
-            }
-            if isExpanded {
-                Text(inferenceLine)
-                Text(jointLine)
-                    .foregroundStyle(pose?.hasPerson == true ? .green : .orange)
-                if let weakJoints {
-                    Text(weakJoints)
-                        .foregroundStyle(.yellow)
+        VStack(alignment: .leading, spacing: 4) {
+            // one line, and it is whatever matters most right now — guidance, or the last verdict
+            Text(headline.text)
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .foregroundStyle(colour(headline.tone))
+                .contentTransition(.opacity)
+
+            HStack(spacing: 10) {
+                if isRecording {
+                    Circle().fill(.red).frame(width: 9, height: 9)
                 }
-                Text(bufferLine)
-                    .foregroundStyle(isBufferLandscape ? .red : .primary)
-                Text("frames \(stats.deliveredFrames) · dropped \(stats.droppedFrames)")
-                if stats.delegateOnMainThread {
-                    Text("delegate ON MAIN QUEUE")
-                        .foregroundStyle(.red)
-                }
-                Text(camera)
-                    .foregroundStyle(.secondary)
-                Text(status)
-                    .foregroundStyle(.secondary)
+                Text(summary)
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+            }
+
+            if showsDiagnostics {
+                diagnostics
+                    .font(.system(size: 11, design: .monospaced))
+                    .padding(.top, 6)
             }
         }
-        .font(.system(size: 11, design: .monospaced))
-        .padding(8)
-        .background(.thinMaterial, in: .rect(cornerRadius: 8))
-        .opacity(0.9)
+        .padding(12)
+        .background(.thinMaterial, in: .rect(cornerRadius: 14))
         .contentShape(.rect)
-        .onTapGesture { isExpanded.toggle() }
+        .onTapGesture { showsDiagnostics.toggle() }
+        .animation(.easeInOut(duration: 0.15), value: showsDiagnostics)
+    }
+
+    private var diagnostics: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(rateLine)
+            Text(inferenceLine)
+            Text(measurement)
+            Text(jointLine)
+                .foregroundStyle(pose?.hasPerson == true ? .green : .orange)
+            if let weakJoints {
+                Text(weakJoints).foregroundStyle(.yellow)
+            }
+            if let recordingLine {
+                Text(recordingLine).foregroundStyle(recording.writeFailures > 0 ? .red : .secondary)
+            }
+            Text(bufferLine)
+                .foregroundStyle(isBufferLandscape ? .red : .primary)
+            Text("frames \(stats.deliveredFrames) · dropped \(stats.droppedFrames)")
+            if stats.delegateOnMainThread {
+                Text("delegate ON MAIN QUEUE").foregroundStyle(.red)
+            }
+            Text(camera).foregroundStyle(.secondary)
+            Text(status).foregroundStyle(.secondary)
+        }
+    }
+
+    // the tone comes from the ViewModel; the View only decides what each tone looks like
+    private func colour(_ tone: CameraViewModel.Headline.Tone) -> Color {
+        switch tone {
+        case .waiting: .orange
+        case .ready: .green
+        case .good: .green
+        case .bad: .red
+        }
     }
 
     private var rateLine: String {
@@ -102,10 +110,6 @@ struct CaptureHUDView: View {
             )
         guard recording.writeFailures > 0 else { return line }
         return line + " · \(recording.writeFailures) WRITES FAILED"
-    }
-
-    private var recordingColour: Color {
-        recording.isRecording || recording.writeFailures > 0 ? .red : .secondary
     }
 
     private var inferenceLine: String {
@@ -137,36 +141,39 @@ struct CaptureHUDView: View {
 }
 
 #Preview {
-    CaptureHUDView(
-        stats: CaptureStats(
-            framesPerSecond: 29.9,
-            deliveredFrames: 897,
-            droppedFrames: 41,
-            delegateOnMainThread: false
-        ),
-        poseStats: PoseStats(
-            framesPerSecond: 24.2,
-            meanInferenceMilliseconds: 31.4,
-            peakInferenceMilliseconds: 48.9
-        ),
-        pose: nil,
-        kneeAngle: "knee 118.4°",
-        hasReading: true,
-        weakJoints: "left ankle 0.41 · right knee 0.28",
-        setup: "turn square to the phone — 0.28, needs 0.15",
-        isArmed: false,
-        measurement: "smooth 116.9° · 3 reps · last 84° · 2.1s",
-        verdict: "depth 118° · needs under 92° — go deeper",
-        verdictPassed: false,
-        recording: RecordingStats(
-            isRecording: true,
-            condition: "off axis",
-            framesWritten: 412,
-            seconds: 13.7,
-            meanCostMilliseconds: 0.31,
-            writeFailures: 0
-        ),
-        camera: "camera back",
-        status: "running"
-    )
+    VStack(alignment: .leading, spacing: 20) {
+        ForEach(
+            [
+                CameraViewModel.Headline(text: "square up — counting only", tone: .waiting),
+                CameraViewModel.Headline(text: "ready", tone: .ready),
+                CameraViewModel.Headline(text: "depth 118° · needs under 86° — go deeper", tone: .bad)
+            ],
+            id: \.text
+        ) { headline in
+            CaptureHUDView(
+                headline: headline,
+                summary: "3 reps  ·  knee 118°",
+                isRecording: headline.tone == .bad,
+                stats: CaptureStats(
+                    framesPerSecond: 29.9,
+                    deliveredFrames: 897,
+                    droppedFrames: 0,
+                    delegateOnMainThread: false
+                ),
+                poseStats: PoseStats(
+                    framesPerSecond: 30,
+                    meanInferenceMilliseconds: 22.4,
+                    peakInferenceMilliseconds: 28.9
+                ),
+                pose: nil,
+                weakJoints: "left ankle 0.41",
+                measurement: "smooth 116.9° · last 84° · 2.1s · square 0.12",
+                recording: .idle,
+                camera: "camera front",
+                status: "running"
+            )
+        }
+    }
+    .padding()
+    .background(.black)
 }
