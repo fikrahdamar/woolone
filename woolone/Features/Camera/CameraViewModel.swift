@@ -331,6 +331,8 @@ final class CameraViewModel {
                 // non-nil only on the frame a rep closed, which is what makes the spoken verdict
                 // fire once rather than on every frame after it
                 var finished: FormJudge.Judgement?
+                // separate from the judgement: an off-axis rep closes without one, and is still counted
+                var finishedRep: Int?
                 if setup == .armed {
                     // the hold's own median, not the last frame — one jittery sample shifts every rep after it
                     if !wasArmed, let baseline = setupGate.baseline {
@@ -338,6 +340,7 @@ final class CameraViewModel {
                     }
                     // judged at the bottom of the rep: the top carries no information
                     if let rep = repCounter.update(signal: signal, angle: smoothedAngle, at: now) {
+                        finishedRep = rep.index
                         finished = FormJudge(definition: exercise)
                             .judge(rep, isSquare: setupGate.isSquare)
                         judgement = finished ?? judgement
@@ -360,10 +363,12 @@ final class CameraViewModel {
                     isSquare: setupGate.isSquare,
                     angle: smoothedAngle,
                     depthLimit: exercise.faults.first?.validRange.upperBound ?? 0,
+                    finishedRep: finishedRep,
                     judgement: finished,
                     at: now
-                ) {
-                    speaker.say(cue)
+                ), speaker.say(cue) {
+                    // only a cue that was actually spoken starts its timer
+                    coach.spoke(cue, at: now)
                 }
             }
         })
