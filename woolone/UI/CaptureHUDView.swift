@@ -12,6 +12,8 @@ struct CaptureHUDView: View {
     let headline: CameraViewModel.Headline
     let summary: String
     let isRecording: Bool
+    /// Spike only — both knee angles side by side. Delete with the branch.
+    var comparison3D: String? = nil
 
     let stats: CaptureStats
     let poseStats: PoseStats
@@ -40,6 +42,12 @@ struct CaptureHUDView: View {
                 Text(summary)
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
+            }
+
+            if let comparison3D {
+                Text(comparison3D)
+                    .font(.system(size: 15, weight: .medium, design: .monospaced))
+                    .foregroundStyle(comparison3D.hasPrefix("3D FAILED") ? .red : .cyan)
             }
 
             if showsDiagnostics {

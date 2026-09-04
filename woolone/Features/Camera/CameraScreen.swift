@@ -31,6 +31,7 @@ struct CameraScreen: View {
                     headline: viewModel.headline,
                     summary: viewModel.summaryText,
                     isRecording: viewModel.recording.isRecording,
+                    comparison3D: viewModel.comparison3DText,
                     stats: viewModel.stats,
                     poseStats: viewModel.poseStats,
                     pose: viewModel.pose,

@@ -53,6 +53,8 @@ final class CameraViewModel {
     private(set) var headline = Headline(text: "step into frame", tone: .waiting)
     /// Off by default: a demo that starts talking unprompted is worse than one that stays quiet.
     private(set) var isCoachOn = false
+    /// Spike only — the 3D reading taken on the same frames as the 2D one.
+    private(set) var reading3D = Pose3DProbe.Reading.none
 
     private let source: any PoseSource
     private let logger = FrameLogger()
@@ -64,6 +66,7 @@ final class CameraViewModel {
     private var setupGate = SetupGate()
     private let exercise = ExerciseDefinition.squat
     private var verdictShownAt: Double = -.greatestFiniteMagnitude
+    private let probe3D = Pose3DProbe()
     private var coach = SpeechCoach()
     private let speaker = Speaker()
     private var angleEMA = EMA()
@@ -74,7 +77,7 @@ final class CameraViewModel {
     init(camera: CameraSession = CameraSession()) {
         self.camera = camera
         replaySource = nil
-        source = LiveCameraSource(camera: camera, logger: logger)
+        source = LiveCameraSource(camera: camera, logger: logger, probe3D: probe3D)
     }
 
     /// The seam, exercised for the first time: everything below this line cannot tell which source it got.
@@ -121,6 +124,26 @@ final class CameraViewModel {
     }
 
     var verdictPassed: Bool { judgement?.passed ?? false }
+
+    /// Spike only: both knee angles from the same instant, so turning 45° shows which one moves.
+    var comparison3DText: String? {
+        if let failure = reading3D.failure {
+            return "3D FAILED · \(failure)"
+        }
+        guard reading3D.jointCount > 0 else { return nil }
+        func degrees(_ value: CGFloat?) -> String {
+            value.map { String(format: "%.0f°", $0) } ?? "—"
+        }
+        return "3D L\(degrees(reading3D.leftKnee)) R\(degrees(reading3D.rightKnee))"
+            + "  ·  2D \(degrees(kneeAngle))"
+            + String(
+                format: "  ·  %.0f ms · %d joints · %.2fm %@",
+                reading3D.milliseconds,
+                reading3D.jointCount,
+                reading3D.bodyHeightMetres ?? 0,
+                reading3D.isHeightMeasured ? "measured" : "ASSUMED"
+            )
+    }
 
     /// The second line: the count, the live angle, and anything that makes the set untrustworthy.
     var summaryText: String {
@@ -372,6 +395,13 @@ final class CameraViewModel {
                 self?.poseStats = value
             }
         })
+        if let live = source as? LiveCameraSource {
+            tasks.append(Task { [weak self, live] in
+                for await value in live.readings3D {
+                    self?.reading3D = value
+                }
+            })
+        }
         if let camera {
             tasks.append(Task { [weak self, camera] in
                 for await value in camera.stats {
