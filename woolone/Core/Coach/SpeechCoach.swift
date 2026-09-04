@@ -23,9 +23,11 @@ nonisolated struct SpeechCoach {
         case standUp
         case squareUp
         case ready
+        case down
         case up
         case good
-        case deeper
+        case deeper(Int)
+        case count(Int)
 
         var phrase: String {
             switch self {
@@ -33,17 +35,31 @@ nonisolated struct SpeechCoach {
             case .standUp: "stand up"
             case .squareUp: "square up"
             case .ready: "ready"
+            case .down: "down"
             case .up: "up"
             case .good: "good"
-            case .deeper: "go deeper"
+            // the number rides along on the correction too, or the spoken count silently skips
+            // every rep the user got wrong and stops matching the HUD
+            case .deeper(let rep): "\(rep), go deeper"
+            case .count(let rep): "\(rep)"
+            }
+        }
+
+        /// Worth cutting off whatever is still being said — this cue exists for one frame only.
+        var interrupts: Bool {
+            switch self {
+            case .count, .deeper: true
+            default: false
             }
         }
 
         /// Something still wrong, so it says itself again until it is fixed.
         var isState: Bool {
             switch self {
-            case .stepBack, .standUp, .squareUp: true
-            case .ready, .up, .good, .deeper: false
+            // standing still is a state, and nagging is the point — a descent that never starts
+            // is the case the user hit
+            case .stepBack, .standUp, .squareUp, .down: true
+            case .ready, .up, .good, .deeper, .count: false
             }
         }
     }
@@ -53,42 +69,60 @@ nonisolated struct SpeechCoach {
     private var saidReady = false
     private var saidUp = false
 
-    /// `judgement` is non-nil only on the frame a rep finishes.
+    /// `finishedRep` and `judgement` are non-nil only on the frame a rep closes; a rep off-axis
+    /// finishes without a judgement, and is still counted out loud.
     mutating func update(
         state: SetupGate.State,
         isSquare: Bool,
         angle: CGFloat?,
         depthLimit: CGFloat,
+        finishedRep: Int?,
         judgement: FormJudge.Judgement?,
         at now: Double
     ) -> Cue? {
-        // a finished rep outranks everything: it is the only cue tied to a moment that just passed
-        if let judgement {
+        // a finished rep outranks everything: it is the only cue tied to a moment that just passed.
+        // Both branches carry the number, so the spoken count never diverges from the HUD
+        if let finishedRep {
             saidUp = false
-            return emit(judgement.passed ? .good : .deeper, at: now)
+            if let judgement, !judgement.passed { return offer(.deeper(finishedRep), at: now) }
+            return offer(.count(finishedRep), at: now)
         }
 
         // back upright — the next descent gets its own "up"
         if let angle, angle >= SetupGate.standingKnee { saidUp = false }
 
+        // grouped with the other event cues, ahead of the state ones: an event is tied to a moment
+        // and a state is not
+        if !saidUp, state == .armed, isSquare, let angle, angle <= depthLimit {
+            return offer(.up, at: now)
+        }
+
         if let cue = stateCue(state, isSquare: isSquare) {
             if case .armed = state {} else { saidReady = false }
-            return emit(cue, at: now)
+            return offer(cue, at: now)
         }
 
         guard state == .armed else { return nil }
 
         if !saidReady {
-            saidReady = true
-            return emit(.ready, at: now)
+            return offer(.ready, at: now)
         }
 
-        // the one cue that can be acted on the instant it arrives: you are deep enough, come up
-        if !saidUp, let angle, angle <= depthLimit, isSquare {
-            saidUp = true
-            return emit(.up, at: now)
+        // said while standing still, where there is all the time in the world — the descent cue
+        // cannot be spoken during the descent, which lasts less than a second
+        if let angle, angle >= SetupGate.standingKnee {
+            return offer(.down, at: now)
         }
         return nil
+    }
+
+    /// Called only once the cue was actually spoken. A cue the speaker refused is offered again
+    /// next frame — the old code started the repeat timer on cues nobody ever heard.
+    mutating func spoke(_ cue: Cue, at now: Double) {
+        spoken = cue
+        spokenAt = now
+        if cue == .ready { saidReady = true }
+        if cue == .up { saidUp = true }
     }
 
     mutating func reset() {
@@ -112,10 +146,8 @@ nonisolated struct SpeechCoach {
 
     // only a state cue is throttled here. An event cue is guarded by its own flag, and a second
     // "up" means a second descent — suppressing it would silence every rep after the first
-    private mutating func emit(_ cue: Cue, at now: Double) -> Cue? {
+    private func offer(_ cue: Cue, at now: Double) -> Cue? {
         if cue.isState, cue == spoken, now - spokenAt < Self.repeatAfter { return nil }
-        spoken = cue
-        spokenAt = now
         return cue
     }
 }
