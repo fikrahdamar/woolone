@@ -24,26 +24,37 @@ struct CameraScreen: View {
                 isFaulted: viewModel.isFaulted
             )
                 .ignoresSafeArea()
-            CaptureHUDView(
-                stats: viewModel.stats,
-                poseStats: viewModel.poseStats,
-                pose: viewModel.pose,
-                kneeAngle: viewModel.kneeAngleText,
-                hasReading: viewModel.kneeAngle != nil,
-                weakJoints: viewModel.weakJointsText,
-                setup: viewModel.setupText,
-                isArmed: viewModel.isArmed,
-                measurement: viewModel.measurementText,
-                verdict: viewModel.verdictText,
-                verdictPassed: viewModel.verdictPassed,
-                recording: viewModel.recording,
-                camera: viewModel.cameraText,
-                status: viewModel.statusText
-            )
+            // one row, so the layout keeps the panel and the controls apart rather than a magic
+            // inset doing it — the panel grew wide enough to sit under the buttons otherwise
+            HStack(alignment: .top, spacing: 12) {
+                CaptureHUDView(
+                    headline: viewModel.headline,
+                    summary: viewModel.summaryText,
+                    isRecording: viewModel.recording.isRecording,
+                    stats: viewModel.stats,
+                    poseStats: viewModel.poseStats,
+                    pose: viewModel.pose,
+                    weakJoints: viewModel.weakJointsText,
+                    measurement: viewModel.measurementText,
+                    recording: viewModel.recording,
+                    camera: viewModel.cameraText,
+                    status: viewModel.statusText
+                )
+                Spacer(minLength: 0)
+                // top right, never the bottom — the feet live down there and the ankle is the
+                // joint most at risk. fixedSize so a long headline never squeezes the controls
+                controls.fixedSize()
+            }
             .padding()
         }
-        // top right, never the bottom — the feet live down there and the ankle is the joint most at risk
-        .overlay(alignment: .topTrailing) {
+        .task { await viewModel.start() }
+        .fullScreenCover(isPresented: $showsReplay) { ReplayScreen() }
+    }
+
+    private var controls: some View {
+        // two groups, weighted differently: the two you use during a set are prominent,
+        // the three you use standing at the phone are not
+        VStack(alignment: .trailing, spacing: 14) {
             VStack(alignment: .trailing, spacing: 8) {
                 if viewModel.recording.isRecording {
                     Button("stop", role: .destructive) {
@@ -59,6 +70,18 @@ struct CameraScreen: View {
                         }
                     }
                 }
+                Button {
+                    viewModel.toggleCoach()
+                } label: {
+                    Label("coach", systemImage: viewModel.isCoachOn ? "speaker.wave.2.fill" : "speaker.slash")
+                        .labelStyle(.iconOnly)
+                }
+                .tint(viewModel.isCoachOn ? .green : .secondary)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+
+            VStack(alignment: .trailing, spacing: 6) {
                 Button("flip") {
                     Task { await viewModel.flipCamera() }
                 }
@@ -66,18 +89,13 @@ struct CameraScreen: View {
                 Button(viewModel.showsAllJoints ? "leg" : "all") {
                     viewModel.toggleAllJoints()
                 }
-                Button(viewModel.isCoachOn ? "coach on" : "coach") {
-                    viewModel.toggleCoach()
-                }
-                // reachable even when the camera failed, which is the only state the simulator has
+                // reachable even when the camera failed, the only state the simulator has
                 Button("replay") { showsReplay = true }
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
-            .padding()
+            .controlSize(.mini)
+            .tint(.secondary)
         }
-        .task { await viewModel.start() }
-        .fullScreenCover(isPresented: $showsReplay) { ReplayScreen() }
     }
 }
 

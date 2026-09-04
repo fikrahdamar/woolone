@@ -11,6 +11,19 @@ import Observation
 @MainActor
 @Observable
 final class CameraViewModel {
+    /// What the screen should say, and how urgently. The View picks the colours, not the meaning.
+    struct Headline: Equatable {
+        enum Tone: Equatable {
+            case waiting
+            case ready
+            case good
+            case bad
+        }
+
+        let text: String
+        let tone: Tone
+    }
+
     enum Status: Equatable {
         case idle
         case starting
@@ -36,6 +49,8 @@ final class CameraViewModel {
     private(set) var reps = 0
     private(set) var lastRep: RepCounter.Rep?
     private(set) var judgement: FormJudge.Judgement?
+    /// The single line worth reading from three metres away.
+    private(set) var headline = Headline(text: "step into frame", tone: .waiting)
     /// Off by default: a demo that starts talking unprompted is worse than one that stays quiet.
     private(set) var isCoachOn = false
 
@@ -48,6 +63,7 @@ final class CameraViewModel {
     private var legSelector = LegSelector()
     private var setupGate = SetupGate()
     private let exercise = ExerciseDefinition.squat
+    private var verdictShownAt: Double = -.greatestFiniteMagnitude
     private var coach = SpeechCoach()
     private let speaker = Speaker()
     private var angleEMA = EMA()
@@ -62,7 +78,7 @@ final class CameraViewModel {
     }
 
     /// The seam, exercised for the first time: everything below this line cannot tell which source it got.
-    init(replaying recording: Recording) throws {
+    init(replaying recording: Recording) throws  {
         camera = nil
         let replay = try ReplaySource(recording)
         replaySource = replay
@@ -106,20 +122,32 @@ final class CameraViewModel {
 
     var verdictPassed: Bool { judgement?.passed ?? false }
 
+    /// The second line: the count, the live angle, and anything that makes the set untrustworthy.
+    var summaryText: String {
+        var parts = ["\(reps) rep\(reps == 1 ? "" : "s")"]
+        parts.append(kneeAngle.map { String(format: "knee %.0f°", $0) } ?? "knee —")
+        // a set with gaps had joints leave the frame, and its depths read too deep — feet cut off
+        // by the bottom edge misplace the ankle, which bends the angle the wrong way
+        if setupGate.lossesSinceArming > 0 {
+            parts.append("\(setupGate.lossesSinceArming) GAPS")
+        }
+        return parts.joined(separator: "  ·  ")
+    }
+
     /// Raw and smoothed side by side — smoothing costs depth at the bottom, so the price stays visible.
     var measurementText: String {
         var parts: [String] = []
         if let smoothedAngle {
             parts.append(String(format: "smooth %.1f°", smoothedAngle))
         }
-        parts.append("\(reps) rep\(reps == 1 ? "" : "s")")
-        // a set with gaps had joints leave the frame, and its depths read too deep — feet cut off
-        // by the bottom edge misplace the ankle, which bends the angle the wrong way
         if setupGate.lossesSinceArming > 0 {
             parts.append("\(setupGate.lossesSinceArming) GAPS — check feet in frame")
         }
         if let lastRep, let lowest = lastRep.lowestAngle {
             parts.append(String(format: "last %.0f° · %.1fs", lowest, lastRep.seconds))
+        }
+        if let spread = setupGate.spread {
+            parts.append(String(format: "square %.2f", spread))
         }
         return parts.joined(separator: " · ")
     }
@@ -134,7 +162,9 @@ final class CameraViewModel {
         case .waiting(.noPerson):
             "step into frame"
         case .waiting(.missingJoints(let names)):
-            "step back — " + names.prefix(3)
+            // two names, not three: "step back" is the action, the names are only there so the
+            // user can tell a framing problem from an occlusion one
+            "step back — " + names.prefix(2)
                 .map(\.label)
                 .joined(separator: ", ") + " out of frame"
         case .waiting(.notStanding):
@@ -316,6 +346,15 @@ final class CameraViewModel {
                     lastRep = repCounter.lastRep
                 }
 
+                if finished != nil { verdictShownAt = now }
+                headline = Self.headline(
+                    setup: setup,
+                    setupText: setupText,
+                    isSquare: setupGate.isSquare,
+                    judgement: judgement,
+                    verdictAge: now - verdictShownAt
+                )
+
                 if isCoachOn, let cue = coach.update(
                     state: setup,
                     isSquare: setupGate.isSquare,
@@ -352,6 +391,30 @@ final class CameraViewModel {
                 }
             })
         }
+    }
+
+    /// A finished rep owns the line for a moment, then it goes back to saying what to do next.
+    // three seconds: long enough to read at a glance, short enough that the next rep is not
+    // judged against a line describing the previous one. A preference, not a measurement.
+    static let verdictSeconds: Double = 3
+
+    private static func headline(
+        setup: SetupGate.State,
+        setupText: String,
+        isSquare: Bool,
+        judgement: FormJudge.Judgement?,
+        verdictAge: Double
+    ) -> Headline {
+        if let judgement, verdictAge < verdictSeconds {
+            return Headline(text: judgement.text, tone: judgement.passed ? .good : .bad)
+        }
+        guard setup == .armed else {
+            return Headline(text: setupText, tone: .waiting)
+        }
+        guard isSquare else {
+            return Headline(text: "square up — counting only", tone: .waiting)
+        }
+        return Headline(text: "ready", tone: .ready)
     }
 
     private static func now() -> Double {
