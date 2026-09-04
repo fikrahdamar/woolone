@@ -66,6 +66,9 @@ struct CameraScreen: View {
                 Button(viewModel.showsAllJoints ? "leg" : "all") {
                     viewModel.toggleAllJoints()
                 }
+                Button(viewModel.isCoachOn ? "coach on" : "coach") {
+                    viewModel.toggleCoach()
+                }
                 // reachable even when the camera failed, which is the only state the simulator has
                 Button("replay") { showsReplay = true }
             }
