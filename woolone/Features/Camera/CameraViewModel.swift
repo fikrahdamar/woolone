@@ -36,6 +36,8 @@ final class CameraViewModel {
     private(set) var reps = 0
     private(set) var lastRep: RepCounter.Rep?
     private(set) var judgement: FormJudge.Judgement?
+    /// Off by default: a demo that starts talking unprompted is worse than one that stays quiet.
+    private(set) var isCoachOn = false
 
     private let source: any PoseSource
     private let logger = FrameLogger()
@@ -46,6 +48,8 @@ final class CameraViewModel {
     private var legSelector = LegSelector()
     private var setupGate = SetupGate()
     private let exercise = ExerciseDefinition.squat
+    private var coach = SpeechCoach()
+    private let speaker = Speaker()
     private var angleEMA = EMA()
     // the rep signal is smoothed too: the hysteresis gap is 0.12 and raw jitter eats into it
     private var signalEMA = EMA()
@@ -191,6 +195,12 @@ final class CameraViewModel {
         showsAllJoints.toggle()
     }
 
+    func toggleCoach() {
+        isCoachOn.toggle()
+        coach.reset()
+        if !isCoachOn { speaker.stop() }
+    }
+
     var cameraText: String {
         facing == .front
             ? "camera front · the view is a mirror, so left and right joint names are swapped"
@@ -288,6 +298,9 @@ final class CameraViewModel {
                 smoothedAngle = angleEMA.update(kneeAngle)
 
                 let signal = signalEMA.update(frame.repSignal)
+                // non-nil only on the frame a rep closed, which is what makes the spoken verdict
+                // fire once rather than on every frame after it
+                var finished: FormJudge.Judgement?
                 if setup == .armed {
                     // the hold's own median, not the last frame — one jittery sample shifts every rep after it
                     if !wasArmed, let baseline = setupGate.baseline {
@@ -295,11 +308,23 @@ final class CameraViewModel {
                     }
                     // judged at the bottom of the rep: the top carries no information
                     if let rep = repCounter.update(signal: signal, angle: smoothedAngle, at: now) {
-                        judgement = FormJudge(definition: exercise)
+                        finished = FormJudge(definition: exercise)
                             .judge(rep, isSquare: setupGate.isSquare)
+                        judgement = finished ?? judgement
                     }
                     reps = repCounter.count
                     lastRep = repCounter.lastRep
+                }
+
+                if isCoachOn, let cue = coach.update(
+                    state: setup,
+                    isSquare: setupGate.isSquare,
+                    angle: smoothedAngle,
+                    depthLimit: exercise.faults.first?.validRange.upperBound ?? 0,
+                    judgement: finished,
+                    at: now
+                ) {
+                    speaker.say(cue)
                 }
             }
         })
