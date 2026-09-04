@@ -22,14 +22,14 @@ struct FormJudgeTests {
         let verdict = try #require(Self.judge(depth: 118))
         #expect(verdict.passed == false)
         #expect(verdict.cue == "go deeper")
-        #expect(verdict.text == "depth 118° · needs under 96° — go deeper")
+        #expect(verdict.text == "depth 118° · needs under 86° — go deeper")
     }
 
     /// The cue names the measurement, never the person. This is the whole reason for angles over ML.
     @Test func theCueCarriesTheNumberAndTheRange() throws {
         let verdict = try #require(Self.judge(depth: 118))
         #expect(verdict.text.contains("118"))
-        #expect(verdict.text.contains("96"))
+        #expect(verdict.text.contains("86"))
     }
 
     /// A crooked camera reads the angle 21–56° wrong. Counting survives that; grading must not pretend to.
