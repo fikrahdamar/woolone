@@ -55,6 +55,9 @@ struct ReplayScreen: View {
                 VStack(alignment: .trailing, spacing: 6) {
                     Button("close") { close() }
                     Button(model.showsAllJoints ? "leg" : "all") { model.toggleAllJoints() }
+                    // the cues are hard to test by squatting — a recording says the whole sequence
+                    // back, in order, on the simulator, as many times as needed
+                    Button(model.isCoachOn ? "mute" : "coach") { model.toggleCoach() }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
